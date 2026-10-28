@@ -23,6 +23,7 @@ Helpers run relative to this skill's location:
 ```text
 node scripts/qa.ts init <product-root> <project-slug>
 node scripts/qa.ts env-template <qa-root>
+node scripts/qa.ts prepare-env <qa-root>
 node scripts/qa.ts check-env <qa-root>
 node scripts/qa.ts approve <qa-root> setup <actual-user-decision-reference>
 node scripts/qa.ts approve <qa-root> path:PATH-001 <actual-user-decision-reference>
@@ -37,6 +38,8 @@ node scripts/qa.ts run <qa-root> canary <new-run-id> retest
 `examples/` contains non-sensitive **unapproved** config, mapping and scenario shapes. Adapt them to the real product; copying an example is not user approval. Fill results according to [models.ts](scripts/models.ts). `report` without a run ID produces a planning report before execution is possible.
 
 The `.env.qa` boundary is literal: the agent never inspects the file; trusted local code necessarily loads it to use credentials. Child stdout/stderr receive literal-value redaction, but encoded values and screenshots need collection-time protection. The file is local plaintext, not a vault. Users enter values locally rather than in chat.
+
+Private host URLs use `environment.hostUrlEnv` references; additional private connection parameters use `privateEnvKeys`. Both join account keys in preparation, template generation and presence checks. For Owlbear, the Init handoff can prepare `OWLBEAR_URL` and numbered `OWLBEAR_LOGIN_1` / `OWLBEAR_PASS_1` slots. Private prerequisite setup stays separate from scenario, browser-matrix and fixture-policy interviews.
 
 QA output lives under the product's `.scratch/QA/<project>/`, not this skill repository. Existing workspaces, credentials and run IDs are not overwritten. Local report generation, locking a contract and selecting an issue tracker do not authorize deployment, publication or unrelated external writes.
 

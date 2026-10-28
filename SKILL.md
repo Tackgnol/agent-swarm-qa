@@ -21,6 +21,8 @@ Read only the phase reference needed now. Bundled helpers use Node >=22.18 with 
 
 **Mandatory credential boundary:** tell the user: “Fill `.env.qa` locally. I will never open, print, search, or copy its contents into chat or reports. Trusted local runners load it directly.” Keep only aliases and env key names in agent-visible configuration. This restriction applies to every subagent, tool inspection and debugging attempt. Read [init.md](references/init.md) before credential setup.
 
+Separate **setup decisions**, **private prerequisites**, and **scenario intent**. Private URLs, login parameters and account values belong in the dedicated Init handoff to `.env.qa`, not a browser-matrix, fixture-policy or scenario question. Once allocated, refer to their aliases/key names and check presence locally. A later missing prerequisite gets its own focused handoff; do not reopen unrelated setup questions.
+
 ## User scrutiny is part of the product
 
 Always review each newly mapped path with the user, even if it looks obvious. Investigate discoverable facts yourself; grill for intent, expectations and tradeoffs. Ask the ready questions for **one path at a time**, give recommendations, wait for answers, then follow dependent branches. Use available user-input tools; never treat elapsed time as an answer. Record actual decisions, not inferred consent. Previously explicit approvals remain valid for unchanged content.

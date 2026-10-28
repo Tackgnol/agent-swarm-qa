@@ -4,6 +4,8 @@ Map **journeys and states**, not just route strings: a path can include an inlin
 
 Create `map.json` and proposed `scenarios/<ID>.json` using the examples. Keep stable IDs. Each map entry is included with scenario IDs, excluded with rationale, or pending review. Each scenario declares identities, preconditions, ordered steps, observable expectations, criticality, test boundary, evidence and cleanup. Avoid vague “works correctly” assertions and unspecified account context.
 
+Use the aliases/private prerequisite names settled during Init. Path questions establish expected behavior, not credentials, room URLs or login parameters. If a new prerequisite appears, return only that dependency to the dedicated private handoff in Init; keep the current scenario discussion and existing coverage/policy decisions separate.
+
 ## Interview tree: one path at a time
 
 This adapts the frontier-based grilling approach: every answer settles a decision and unlocks its dependent branches. Always present the current path and its proposed scenarios, even if no ambiguity is obvious. Do not execute the proposed scenario to discover what the expectation ought to be.

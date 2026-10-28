@@ -1,21 +1,31 @@
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import type { Writable } from 'node:stream';
 import { join } from 'node:path';
-import { readJson } from './workspace.ts';
+import { readJson, requiredEnvKeys } from './workspace.ts';
 import type { Config } from './models.ts';
-import assert from 'node:assert/strict';
 
 /** Expose key names and presence only; never return the loaded credential values. */
 export function missingCredentialKeys(root: string): string[] {
   const config = readJson<Config>(join(root, 'config.json'));
   const values = parseEnv(readFileSync(join(root, '.env.qa'), 'utf8'));
-  const keys = [...new Set(config.identities.flatMap(identity => identity.envKeys))];
-  assert.ok(keys.every(key => /^[A-Z_][A-Z0-9_]*$/.test(key)), 'Credential references must be env key names.');
+  const keys = requiredEnvKeys(config);
   return keys.filter(key => !values[key]?.trim());
+}
+
+/** Append missing empty slots locally; return names only and preserve all existing values. */
+export function preparePrivateEnv(root: string): { addedKeys: string[] } {
+  const config = readJson<Config>(join(root, 'config.json'));
+  const path = join(root, '.env.qa');
+  const values = parseEnv(readFileSync(path, 'utf8'));
+  const addedKeys = requiredEnvKeys(config).filter(key => !Object.hasOwn(values, key));
+  if (addedKeys.length > 0) {
+    appendFileSync(path, `\n${addedKeys.map(key => `${key}=`).join('\n')}\n`, 'utf8');
+  }
+  return { addedKeys };
 }
 
 /** Redact literal secret values even when child-process output splits them across chunks. */

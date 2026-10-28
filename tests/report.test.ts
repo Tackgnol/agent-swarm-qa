@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readJson, readRun, writeJson } from '../scripts/workspace.ts';
+import { approve, readJson, readRun, startRun, writeJson } from '../scripts/workspace.ts';
 import { buildReport, renderHtml, writeReport, writePlanningReport } from '../scripts/report.ts';
-import type { Report, Result, Scenario } from '../scripts/models.ts';
+import type { Config, Report, Result, Scenario } from '../scripts/models.ts';
 import { fixture } from './helpers.ts';
 
 function outcome(status: Result['status'], attempt = 1): Result {
@@ -88,5 +88,23 @@ test('HTML escapes observations and embeds only inspected raster images inside t
     const markdown = readFileSync(join(f.run, 'report.md'), 'utf8');
     assert.ok(markdown.includes(json.recommendation));
     assert.equal(json.counts.passed, 1);
+  } finally { rmSync(f.project, { recursive: true, force: true }); }
+});
+
+test('private host references survive snapshots and reports without resolving their values', () => {
+  const f = fixture();
+  try {
+    const privateUrl = 'https://host.example.test/private/synthetic-capability';
+    writeFileSync(join(f.root, '.env.qa'), `OWLBEAR_URL=${privateUrl}\n`);
+    const config = readJson<Config>(join(f.root, 'config.json'));
+    config.environments[0].hostUrlEnv = 'OWLBEAR_URL';
+    writeJson(join(f.root, 'config.json'), config);
+    approve(f.root, 'setup', 'offline-private-reference-decision');
+    const directory = startRun(f.root, 'canary', 'private-host', 'first-run');
+    writeReport(f.root, 'private-host');
+    for (const file of ['suite.json', 'report.json', 'report.html', 'report.md']) {
+      assert.ok(!readFileSync(join(directory, file), 'utf8').includes(privateUrl));
+    }
+    assert.equal(readJson<Report>(join(directory, 'report.json')).target.hostUrlEnv, 'OWLBEAR_URL');
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });

@@ -4,7 +4,9 @@ Use for iframe extensions, separate approval/forge tabs and live room applicatio
 
 ## Plan the real-host lane
 
-Record the host room, extension manifest/version and action URL/cache fingerprint. Confirm the room is using the intended environment; testing the canary home page does not prove an already-open extension iframe updated. Allocate one room operator when agents share the same room/scene, and record original members, bindings, enemies/scene objects and class/content pool before changes.
+Refer to the host room by alias/private env key, keeping its raw URL or capability in `.env.qa` or private runner state. Record non-sensitive extension manifest/version and action fingerprints. Confirm the room is using the intended environment; testing the canary home page does not prove an already-open extension iframe updated. Allocate one room operator when agents share the same room/scene, and record original members, bindings, enemies/scene objects and class/content pool before changes.
+
+Use a trusted runner to navigate private URL references and sign in with numbered host-account keys. Return sanitized checks/captures, not raw navigation URLs, capability-bearing IDs or browser-state dumps. Handle missing host prerequisites in the dedicated Init handoff, separately from browser coverage and fixture-policy questions.
 
 Use separate identities/contexts for owner and player. A host login, first-party application login and embedded application session are separate observations. Verify the receiving identity/session before claiming sign-in succeeded. Keep existing room members and objects intact; create labeled disposable resources.
 

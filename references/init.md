@@ -8,8 +8,8 @@ Once the product root and slug are known, create the empty workspace **before** 
 
 Collect the ready decisions, recommending defaults and asking dependent questions after their prerequisites are answered:
 
-1. **Environment URLs:** named app/API/external-host URLs, intended target, and any environment exclusions. Discover values from non-sensitive project docs when available; ask the user to confirm intent. Signed/private URL parameters belong in the secret file behind env key names.
-2. **Identity paths:** logged-out/guest, logged-in, or both; role-specific paths and required login mechanism/parameters. Ask whether multiple distinct accounts can be supplied when collaboration, private content, ownership or differing roles are present. Allocate aliases such as `owner`, `member`, `unrelated`; never use a real username/email as an alias. Multiple tabs of the same account do not prove cross-account permissions.
+1. **Environment selection:** public app/API URLs, intended target and environment exclusions. Discover values from non-sensitive project docs when available; ask the user to confirm intent. Allocate env references for private/signed URLs, room capabilities and private connection parameters; never request their values in this interview.
+2. **Identity paths:** logged-out/guest, logged-in, or both; role-specific paths and how many distinct identities the journeys need. Discover the login mechanism from existing setup/source where possible. Allocate aliases such as `owner`, `member`, `unrelated`; never use a real username/email as an alias. Login parameters, host-account details and account values go through the private handoff below. Multiple tabs of the same account do not prove cross-account permissions.
 3. **Issue storage:** local Markdown drafts, GitHub Issues, Linear, or another destination. Confirm the exact repository/team/project and mode: local only, drafts for review, or create/update confirmed findings. Selecting a service is not permission for unrelated writes. Tool credentials such as `GH_TOKEN` also belong in `.env.qa` or an already approved connector, never config JSON.
 4. **Coverage and limits:** critical journeys; actually supported browsers/devices, viewport samples and locales; read-only versus run-owned fixture writes; public/external effects excluded unless separately authorized. Include evidence retention and request limits for fuzzing when requested.
 
@@ -21,19 +21,45 @@ node <skill>/scripts/qa.ts approve <qa-root> setup <actual-user-decision-referen
 
 The approval helper is a recorder, not proof of human consent. Use it only after the user has answered. Changed setup content invalidates its approval.
 
+## Dedicated private-prerequisite handoff
+
+Finish this Init step separately from coverage, fixture policy and path grilling. Present the private file path and **empty key slots**, not a question asking the user to describe connection details in chat. Ask only whether the slots are filled or a manual session is needed. Store unresolved prerequisites by key name, not repeated questions about account details or room URLs.
+
+For an Owlbear lane, for example, use `environment.hostUrlEnv: "OWLBEAR_URL"`, numbered identity keys such as `OWLBEAR_LOGIN_1` / `OWLBEAR_PASS_1` and `_2` for another host identity when required. App accounts have their own aliases/key names; a host login does not establish the embedded app identity. Add other private parameters such as `OWLBEAR_LOGIN_METHOD` to `config.privateEnvKeys` only if needed. Respect user-selected existing spellings (including `OWLBREAR_*`) rather than silently renaming their local keys. These provider-specific slots apply only when that integration is in scope.
+
+The visible configuration stores only references:
+
+```json
+{
+  "environments": [{ "name": "canary", "appUrl": "https://canary.example.test", "hostUrlEnv": "OWLBEAR_URL" }],
+  "privateEnvKeys": ["OWLBEAR_LOGIN_METHOD"],
+  "identities": [{ "alias": "host-owner", "kind": "authenticated", "role": "host owner", "envKeys": ["OWLBEAR_LOGIN_1", "OWLBEAR_PASS_1"] }]
+}
+```
+
+`hostUrlEnv` is an alternative to a literal public `hostUrl`; do not resolve it into config, snapshots or reports. Add non-account private parameters to `privateEnvKeys`. Runners resolve these names internally from the loaded environment and return sanitized observations, not the private URL or values.
+
+Later questions about browsers/locales, fixture permissions or scenario behavior stay focused on those decisions. If execution discovers a missing private prerequisite, pause only dependent cases, allocate the missing slots in a dedicated handoff, and resume once presence is confirmed. Preserve unrelated answers and approvals; do not bundle “how do these accounts log in / what room is available?” into that other question round.
+
 ## Secret handling
 
 Highlight the boundary explicitly: **the agent never reads `.env.qa`; a local runner must load the values to use them.** The file is plaintext local secret storage, not encryption or a secret manager. The initializer creates it with restrictive permissions where supported; Windows access still follows local ACLs. Its workspace `.gitignore` excludes everything by default. Do not force-add it or authenticated storage/traces to Git.
 
-After recording account aliases and required key names in `config.identities`, run:
+After recording identity keys, private URL references and any additional `privateEnvKeys`, run:
+
+```text
+node <skill>/scripts/qa.ts prepare-env <qa-root>
+```
+
+A trusted local process checks which names already exist and appends only missing **empty** slots to `.env.qa`. Existing values, comments and key spellings remain untouched; the agent receives added names only. Run this through the parent before asking for local entry, never concurrently with another preparer or editor. The agent still never opens the file. For a shareable empty-key example, also run:
 
 ```text
 node <skill>/scripts/qa.ts env-template <qa-root>
 ```
 
-This writes **empty key names** to `.env.qa.example` without reading or modifying `.env.qa`. Ask the user to fill the private file in their local editor, using those slots. Ask for account readiness in chat, not values. Do not migrate secrets from old env files or pasted conversation content without explicit instruction.
+`env-template` writes **empty key names** to `.env.qa.example` without reading or modifying `.env.qa`. Ask the user to fill the prepared private slots in their local editor. Ask for readiness in chat, not values. Do not migrate secrets from old env files or pasted conversation content without explicit instruction.
 
-Presence checks return missing names only:
+Presence checks include identities, private URL references and additional parameters, returning missing names only:
 
 ```text
 node <skill>/scripts/qa.ts check-env <qa-root>

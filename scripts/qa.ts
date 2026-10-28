@@ -3,10 +3,10 @@ import { pathToFileURL } from 'node:url';
 import { approve, initialize, loadSuite, lockSuite, startRun } from './workspace.ts';
 import { writePlanningReport, writeReport } from './report.ts';
 import type { Run } from './models.ts';
-import { missingCredentialKeys } from './with-qa-env.ts';
+import { missingCredentialKeys, preparePrivateEnv } from './with-qa-env.ts';
 import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
-import { readJson } from './workspace.ts';
+import { readJson, requiredEnvKeys } from './workspace.ts';
 import type { Config } from './models.ts';
 
 export function main(args: string[]): string {
@@ -29,17 +29,18 @@ export function main(args: string[]): string {
     case 'check': return `Approved suite: ${loadSuite(root).hash}`;
     case 'env-template': {
       const config = readJson<Config>(join(root, 'config.json'));
-      const keys = [...new Set(config.identities.flatMap(identity => identity.envKeys))];
-      for (const key of keys) {
-        if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) { throw new Error('Use env key names only.'); }
-      }
+      const keys = requiredEnvKeys(config);
       const path = join(root, '.env.qa.example');
       writeFileSync(path, `# Copy these empty slots into .env.qa and fill them locally. Never paste values into chat.\n${keys.map(key => `${key}=`).join('\n')}\n`, 'utf8');
       return `${path}\nExisting .env.qa was not read or modified.`;
     }
     case 'check-env': {
       const missing = missingCredentialKeys(root);
-      return missing.length ? `Missing credential key names: ${missing.join(', ')}` : 'Required credential keys are present. No values were returned.';
+      return missing.length ? `Missing private prerequisite key names: ${missing.join(', ')}` : 'Required private prerequisite keys are present. No values were returned.';
+    }
+    case 'prepare-env': {
+      const { addedKeys } = preparePrivateEnv(root);
+      return `Added empty private slots: ${addedKeys.join(', ') || '(none; existing slots preserved)'}. Fill .env.qa locally. No existing values were changed or returned.`;
     }
     case 'run': {
       if (!first || !second || !third) { throw new Error('Environment, unique run ID and phase are required.'); }

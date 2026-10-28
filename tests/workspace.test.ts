@@ -85,3 +85,19 @@ test('reconfirming unchanged content does not invalidate the contract fingerprin
     assert.equal(loadSuite(f.root).hash, before);
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });
+
+test('a host endpoint selects either its public URL or its private key reference', () => {
+  const f = fixture();
+  try {
+    const config = readJson<Config>(join(f.root, 'config.json'));
+    config.environments[0].hostUrlEnv = 'OWLBEAR_URL';
+    config.environments[0].hostUrl = 'https://host.example.test';
+    writeJson(join(f.root, 'config.json'), config);
+    approve(f.root, 'setup', 'offline-conflicting-targets');
+    assert.throws(() => loadSuite(f.root), /public host URL or a private host env reference/);
+    delete config.environments[0].hostUrl;
+    writeJson(join(f.root, 'config.json'), config);
+    approve(f.root, 'setup', 'offline-private-target');
+    assert.ok(loadSuite(f.root).hash);
+  } finally { rmSync(f.project, { recursive: true, force: true }); }
+});

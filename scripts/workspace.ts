@@ -41,6 +41,17 @@ export function safeId(value: string): string {
   return value;
 }
 
+/** Collect private prerequisite names without loading their values. */
+export function requiredEnvKeys(config: Config): string[] {
+  const keys = [...new Set([
+    ...config.identities.flatMap(identity => identity.envKeys),
+    ...(config.privateEnvKeys ?? []),
+    ...config.environments.flatMap(environment => environment.hostUrlEnv !== undefined ? [environment.hostUrlEnv] : []),
+  ])];
+  assert.ok(keys.every(key => typeof key === 'string' && /^[A-Z_][A-Z0-9_]*$/.test(key)), 'Private references must be env key names.');
+  return keys;
+}
+
 export function inside(root: string, path: string): string {
   const target = resolve(root, path);
   const rel = relative(resolve(root), target);
@@ -60,7 +71,7 @@ export function initialize(projectRoot: string, name: string): string {
   writeFileSync(join(root, '.env.qa'), '# Fill locally. The agent must never open or print this file.\n', { mode: 0o600, flag: 'wx' });
   writeFileSync(join(root, '.env.qa.example'), '# Non-sensitive key names only. Add account-specific empty slots after the init interview.\n', 'utf8');
   const config: Config = {
-    version: 1, project: name, environments: [], identities: [],
+    version: 1, project: name, environments: [], identities: [], privateEnvKeys: [],
     issues: { provider: 'undecided', destination: '', mode: 'undecided' },
     coverage: { browsers: [], locales: [], viewports: [] }, mutationPolicy: 'undecided', setupApproval: null,
   };
@@ -115,9 +126,11 @@ export function loadSuite(root: string): Suite {
   assert.notEqual(config.mutationPolicy, 'undecided', 'Set the mutation boundary.');
   assert.ok(['local', 'github', 'linear', 'other'].includes(config.issues.provider) && ['local', 'draft', 'create'].includes(config.issues.mode) && config.issues.destination.trim(), 'Confirm the issue destination and write mode.');
   const envNames = new Set<string>();
+  requiredEnvKeys(config);
   for (const env of config.environments) {
     assert.ok(!envNames.has(safeId(env.name)), 'Duplicate environment name.');
     envNames.add(env.name);
+    assert.ok(!(env.hostUrl && env.hostUrlEnv), 'Choose a public host URL or a private host env reference, not both.');
     for (const url of [env.appUrl, env.apiUrl, env.hostUrl].filter(Boolean)) {
       const parsed = new URL(url!);
       assert.ok(['http:', 'https:'].includes(parsed.protocol) && !parsed.username && !parsed.password, 'Use HTTP URLs without embedded credentials.');

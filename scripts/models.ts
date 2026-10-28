@@ -3,7 +3,8 @@ export type Approval = { decisionRef: string; at: string; contentHash: string };
 export type Config = {
   version: 1;
   project: string;
-  environments: { name: string; appUrl: string; apiUrl?: string; hostUrl?: string }[];
+  environments: { name: string; appUrl: string; apiUrl?: string; hostUrl?: string; hostUrlEnv?: string }[];
+  privateEnvKeys?: string[];
   identities: { alias: string; kind: 'guest' | 'authenticated'; role: string; envKeys: string[] }[];
   issues: { provider: 'undecided' | 'local' | 'github' | 'linear' | 'other'; destination: string; mode: 'undecided' | 'local' | 'draft' | 'create' };
   coverage: { browsers: string[]; locales: string[]; viewports: string[] };
