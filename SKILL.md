@@ -18,6 +18,7 @@ Read only the phase reference needed now. Bundled helpers use Node >=22.18 with 
 | First run | [execution.md](references/execution.md) | Every approved scenario has an honest disposition; unexpected specification questions resolved or explicitly pending |
 | Lock in | [lock-and-report.md](references/lock-and-report.md) | User reviews the report and confirms the scenario contract; a fingerprint records the reviewed baseline |
 | Retest / resume | [execution.md](references/execution.md), then [lock-and-report.md](references/lock-and-report.md) | Execute unchanged locked cases on the observed build; review changed expectations before relocking; always regenerate the standard report |
+| `to-gherkin` | [to-gherkin.md](references/to-gherkin.md) | Export the current approved specs as reviewable `.feature` drafts; observed results never define expectations |
 
 **Mandatory credential boundary:** tell the user: “Fill `.env.qa` locally. I will never open, print, search, or copy its contents into chat or reports. Trusted local runners load it directly.” Keep only aliases and env key names in agent-visible configuration. This restriction applies to every subagent, tool inspection and debugging attempt. Read [init.md](references/init.md) before credential setup.
 

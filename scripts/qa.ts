@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
 import { readJson, requiredEnvKeys } from './workspace.ts';
 import type { Config } from './models.ts';
+import { exportGherkin } from './to-gherkin.ts';
 
 export function main(args: string[]): string {
   const [command, root, first, second, third] = args;
@@ -27,6 +28,10 @@ export function main(args: string[]): string {
       return 'Recorded user approval for the current content fingerprint.';
     }
     case 'check': return `Approved suite: ${loadSuite(root).hash}`;
+    case 'to-gherkin': {
+      if (!first) { throw new Error('A unique export ID is required: to-gherkin <qa-root> <export-id>.'); }
+      return exportGherkin(root, first);
+    }
     case 'next-path': return JSON.stringify(reviewPath(root), null, 2);
     case 'next-path-id': return nextPathId(root);
     case 'focus-path': {

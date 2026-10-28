@@ -35,6 +35,7 @@ node scripts/with-qa-env.ts <qa-root>/.env.qa <qa-root>/runners/<trusted-runner.
 node scripts/qa.ts report <qa-root> <run-id>
 node scripts/qa.ts lock <qa-root> <run-id> <actual-lock-decision-reference>
 node scripts/qa.ts run <qa-root> canary <new-run-id> retest
+node scripts/qa.ts to-gherkin <qa-root> <unique-export-id>
 ```
 
 `examples/` contains non-sensitive **unapproved** config, mapping and scenario shapes. Adapt them to the real product; copying an example is not user approval. Fill results according to [models.ts](scripts/models.ts). `report` without a run ID produces a planning report before execution is possible.
@@ -46,6 +47,12 @@ Private host URLs use `environment.hostUrlEnv` references; additional private co
 QA output lives under the product's `.scratch/QA/<project>/`, not this skill repository. Existing workspaces, credentials and run IDs are not overwritten. Local report generation, locking a contract and selecting an issue tracker do not authorize deployment, publication or unrelated external writes.
 
 Review uses a persisted numeric frontier: finish each path and its scenarios before advancing. IDs stay stable; new paths append after the highest assigned number. Out-of-order approvals are rejected. A user-authorized `focus-path <qa-root> <path-id> <decision-ref> <reason>` temporarily changes the frontier and records the reason, then returns to earlier unfinished work.
+
+## Export approved specs to Gherkin
+
+Ask `$agent-swarm-qa to-gherkin` with the existing QA workspace. The command creates one `.feature` draft per included path and a traceability manifest under `exports/gherkin/<export-id>/`. It uses approved preconditions, actions and expectations only. Observed results, failures and reports never define the output, and no QA run is required. Existing exports are preserved. See [the export workflow](references/to-gherkin.md).
+
+The output has no executable step definitions or automation claims. Runtime export needs no npm dependencies; the official Cucumber parser is a development-only dependency used to verify feature syntax and round-trip preservation in tests.
 
 ## Offline report preview
 

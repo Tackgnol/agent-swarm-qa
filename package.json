@@ -4,11 +4,17 @@
   "private": true,
   "type": "module",
   "description": "A guided, repeatable QA skill with private credentials and portable reports.",
-  "engines": { "node": ">=22.18.0" },
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
     "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "demo": "node scripts/demo.ts"
   },
-  "devDependencies": { "@types/node": "24.12.4", "typescript": "5.9.3" }
+  "devDependencies": {
+    "@cucumber/gherkin": "42.0.1",
+    "@types/node": "24.12.4",
+    "typescript": "5.9.3"
+  }
 }

@@ -93,6 +93,7 @@ If a tool cannot use credentials without exposing them to the agent, ask for a m
   review.json                 persisted numeric review frontier and authorized jumps
   locked.json                 exact approved suite fingerprint and source run
   issues/                     local findings/drafts and remote tracker references
+  exports/gherkin/<export-id>/ approved-spec .feature drafts and source manifest
   planning/report.*           standard planning report (JSON/MD/HTML)
   runs/<unique-run-id>/
     suite.json                immutable config/map/scenario snapshot
