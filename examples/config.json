@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "project": "example-app",
+  "environments": [{ "name": "canary", "appUrl": "https://canary.example.test" }],
+  "identities": [
+    { "alias": "guest", "kind": "guest", "role": "visitor", "envKeys": [] },
+    { "alias": "owner", "kind": "authenticated", "role": "owner", "envKeys": ["QA_OWNER_USERNAME", "QA_OWNER_PASSWORD"] },
+    { "alias": "member", "kind": "authenticated", "role": "member", "envKeys": ["QA_MEMBER_USERNAME", "QA_MEMBER_PASSWORD"] }
+  ],
+  "issues": { "provider": "local", "destination": "issues/", "mode": "local" },
+  "coverage": { "browsers": ["chromium"], "locales": ["en"], "viewports": ["1440x900", "390x844"] },
+  "mutationPolicy": "owned-fixtures",
+  "setupApproval": null
+}

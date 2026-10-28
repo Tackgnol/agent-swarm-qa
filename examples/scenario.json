@@ -1,0 +1,11 @@
+{
+  "id": "QA-001", "pathId": "PATH-001", "title": "A saved draft survives reload",
+  "identities": ["owner"], "critical": true,
+  "preconditions": ["A disposable draft owned by the QA owner; fixture ID recorded in the ledger"],
+  "steps": ["Open the owned draft", "Change its title and wait for save to settle", "Reload the page"],
+  "expected": ["The new title remains visible", "An independent read returns the saved title"],
+  "boundary": "Deployed UI plus real API persistence",
+  "evidence": ["Inspected, settled screenshot after reload", "Sanitized save/read status and fixture correlation"],
+  "cleanup": ["Delete only the run-owned draft and verify absence"],
+  "approval": null
+}

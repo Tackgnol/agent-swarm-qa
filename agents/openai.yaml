@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Swarm QA"
+  short_description: "Map, approve, run and repeat evidence-backed QA"
+  default_prompt: "Use $agent-swarm-qa to initialize QA, review each path and scenario with me, then run the approved suite and produce the standard report."

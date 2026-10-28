@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "paths": [{
+    "id": "PATH-001", "title": "Owned draft editing", "route": "/drafts/:id",
+    "scenarioIds": ["QA-001"], "disposition": "included", "reason": "Core save workflow", "approval": null
+  }]
+}
