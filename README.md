@@ -25,6 +25,8 @@ node scripts/qa.ts init <product-root> <project-slug>
 node scripts/qa.ts env-template <qa-root>
 node scripts/qa.ts prepare-env <qa-root>
 node scripts/qa.ts check-env <qa-root>
+node scripts/qa.ts next-path-id <qa-root>
+node scripts/qa.ts next-path <qa-root>
 node scripts/qa.ts approve <qa-root> setup <actual-user-decision-reference>
 node scripts/qa.ts approve <qa-root> path:PATH-001 <actual-user-decision-reference>
 node scripts/qa.ts approve <qa-root> QA-001 <actual-user-decision-reference>
@@ -42,6 +44,8 @@ The `.env.qa` boundary is literal: the agent never inspects the file; trusted lo
 Private host URLs use `environment.hostUrlEnv` references; additional private connection parameters use `privateEnvKeys`. Both join account keys in preparation, template generation and presence checks. For Owlbear, the Init handoff can prepare `OWLBEAR_URL` and numbered `OWLBEAR_LOGIN_1` / `OWLBEAR_PASS_1` slots. Private prerequisite setup stays separate from scenario, browser-matrix and fixture-policy interviews.
 
 QA output lives under the product's `.scratch/QA/<project>/`, not this skill repository. Existing workspaces, credentials and run IDs are not overwritten. Local report generation, locking a contract and selecting an issue tracker do not authorize deployment, publication or unrelated external writes.
+
+Review uses a persisted numeric frontier: finish each path and its scenarios before advancing. IDs stay stable; new paths append after the highest assigned number. Out-of-order approvals are rejected. A user-authorized `focus-path <qa-root> <path-id> <decision-ref> <reason>` temporarily changes the frontier and records the reason, then returns to earlier unfinished work.
 
 ## Offline report preview
 

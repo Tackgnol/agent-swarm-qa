@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { approve, initialize, loadSuite, lockSuite, startRun } from './workspace.ts';
+import { approve, focusReviewPath, initialize, loadSuite, lockSuite, nextPathId, reviewPath, startRun } from './workspace.ts';
 import { writePlanningReport, writeReport } from './report.ts';
 import type { Run } from './models.ts';
 import { missingCredentialKeys, preparePrivateEnv } from './with-qa-env.ts';
@@ -27,6 +27,12 @@ export function main(args: string[]): string {
       return 'Recorded user approval for the current content fingerprint.';
     }
     case 'check': return `Approved suite: ${loadSuite(root).hash}`;
+    case 'next-path': return JSON.stringify(reviewPath(root), null, 2);
+    case 'next-path-id': return nextPathId(root);
+    case 'focus-path': {
+      if (!first || !second || !third) { throw new Error('Path ID, actual user decision reference and reason are required.'); }
+      return JSON.stringify(focusReviewPath(root, first, second, third), null, 2);
+    }
     case 'env-template': {
       const config = readJson<Config>(join(root, 'config.json'));
       const keys = requiredEnvKeys(config);

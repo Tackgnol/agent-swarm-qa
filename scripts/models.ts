@@ -16,6 +16,11 @@ export type PathEntry = {
   disposition: 'pending' | 'included' | 'excluded'; reason: string; approval: Approval | null;
 };
 export type PathMap = { version: 1; paths: PathEntry[] };
+export type ReviewCursor = {
+  version: 1; order: string[]; currentPathId: string | null; overridePathId: string | null;
+  pendingPathIds: string[]; completedPathIds: string[]; scenarioIds: string[];
+  jumps: { from: string | null; to: string; decisionRef: string; reason: string; at: string }[];
+};
 export type Scenario = {
   id: string; pathId: string; title: string; identities: string[]; critical: boolean;
   preconditions: string[]; steps: string[]; expected: string[];

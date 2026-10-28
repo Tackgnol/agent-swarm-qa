@@ -6,11 +6,33 @@ Create `map.json` and proposed `scenarios/<ID>.json` using the examples. Keep st
 
 Use the aliases/private prerequisite names settled during Init. Path questions establish expected behavior, not credentials, room URLs or login parameters. If a new prerequisite appears, return only that dependency to the dedicated private handoff in Init; keep the current scenario discussion and existing coverage/policy decisions separate.
 
+## Stable numbering and enforced frontier
+
+Assign initial paths consecutive stable IDs (`PATH-001`, `PATH-002`, ...). After IDs have been recorded, use `node <skill>/scripts/qa.ts next-path-id <qa-root>` to allocate new discoveries after the highest assigned number. The parent owns allocation; workers must not choose numbers independently. Keep retired paths as explicitly excluded entries with rationale rather than deleting/renumbering them. Reordering an array or inserting a new discovery must not rename an existing path.
+
+Before **every** question round and on resume, run:
+
+```text
+node <skill>/scripts/qa.ts next-path <qa-root>
+```
+
+`review.json` persists the numeric order, current path, completed/pending IDs and explicit jumps. Use its current path and listed scenarios for the document, focused card and question; include the path ID and completed/total progress in the context. A path remains current until its reviewed disposition and all included scenarios have current approvals. An exclusion is complete only with approved rationale. Changed earlier content returns to the unfinished frontier. Re-read the cursor after recording answers; do not mentally increment the ID or choose a later section of the document.
+
+The approval helper rejects new out-of-order path/scenario approvals. For a user-approved batch, record each path and its scenario approvals together in cursor order using the same actual batch decision reference; then advance without asking again. A deliberate jump requires both a real user decision and a reason:
+
+```text
+node <skill>/scripts/qa.ts focus-path <qa-root> PATH-031 <actual-user-decision-reference> <reason>
+```
+
+The override stays on that unfinished path, then returns to the earlier frontier; it never marks bypassed paths complete. Never invent a reason on the user's behalf or skip because prerequisites are missing: preserve that pending path, continue independent non-review work, and ask for a deferral/order decision if needed.
+
+For an existing workspace adopting this guard, reconcile saved decisions first. Record only demonstrable prior user approvals against unchanged content, in order; preserve those answers without re-asking. Unrecorded/ambiguous decisions remain unfinished. If the previous agent jumped ahead, the cursor returns to the first real gap rather than accepting the latest displayed number as progress.
+
 ## Interview tree: one path at a time
 
 This adapts the frontier-based grilling approach: every answer settles a decision and unlocks its dependent branches. Always present the current path and its proposed scenarios, even if no ambiguity is obvious. Do not execute the proposed scenario to discover what the expectation ought to be.
 
-1. Establish discoverable facts yourself: route, controls, current data shape, available roles/tools and existing tests. Delegate read-only fact gathering when permitted. Ask the human for intent, not codebase facts.
+1. Read the enforced frontier with `next-path`, then establish discoverable facts for that current path: route, controls, current data shape, available roles/tools and existing tests. Delegate read-only fact gathering when permitted. Ask the human for intent, not codebase facts.
 2. Persist the proposed path/scenarios and unresolved decisions **before asking**. Regenerate the current review document; by default use `node <skill>/scripts/qa.ts report <qa-root>` for the planning report. Drafts remain unapproved/not run. Use the user's existing review document if one is already established, keeping it synchronized with the scenario files rather than creating competing copies.
 3. Present that updated document: open the available preview and send a clickable absolute link plus a compact path card in chat. Include path/scenario IDs, the current content revision/fingerprint, preconditions, steps, expected outcomes, evidence, cleanup and criticality. Clearly label unresolved choices/proposals. If a panel is queued or cannot open, the chat summary supplies the readable material. Finish this presentation before invoking the question tool.
 4. Focus the scenario before asking: reuse the existing report preview, navigate to `report.html#case-<scenario-ID>` or scroll that card into view, and verify its heading is visible after layout settles. Cards expose their ID as a direct link and highlight the current fragment target. Include the same link with the question context. For a batch, focus the first card and link each covered ID; move the preview when the discussion moves to another card. After a regenerated document loads, restore that focus before the next question. If automatic scrolling is unavailable, provide the link plus excerpt and disclose the limitation.

@@ -32,8 +32,11 @@ if (!existsSync(root)) {
     map.paths.push({ id: pathId, title: entry.title, route: entry.route, scenarioIds: [entry.id], disposition: 'included', reason: 'Synthetic visual example only', approval: null });
   }
   writeJson(join(root, 'map.json'), map);
-  for (const subject of ['setup', ...map.paths.map(path => `path:${path.id}`), ...definitions.map(entry => entry.id)]) {
-    approve(root, subject, 'SYNTHETIC DEMO — not an actual user approval');
+  approve(root, 'setup', 'SYNTHETIC DEMO — not an actual user approval');
+  for (const path of map.paths) {
+    for (const subject of [`path:${path.id}`, ...path.scenarioIds]) {
+      approve(root, subject, 'SYNTHETIC DEMO — not an actual user approval');
+    }
   }
 }
 const runId = `demo-${Date.now()}`;

@@ -90,6 +90,7 @@ If a tool cannot use credentials without exposing them to the agent, ask for a m
   scenarios/QA-001.json        versioned-by-fingerprint scenario contracts
   runners/*.ts                reusable, reviewed browser/API steps
   checkpoint.json             current phase, active jobs, next action, debt
+  review.json                 persisted numeric review frontier and authorized jumps
   locked.json                 exact approved suite fingerprint and source run
   issues/                     local findings/drafts and remote tracker references
   planning/report.*           standard planning report (JSON/MD/HTML)

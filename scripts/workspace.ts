@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, relative, isAbsolute } from 'node:path';
-import type { Approval, Config, PathMap, Result, Run, Scenario, Suite } from './models.ts';
+import type { Approval, Config, PathMap, Result, ReviewCursor, Run, Scenario, Suite } from './models.ts';
 
 export function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf8')) as T;
@@ -86,6 +86,71 @@ function hasApproval(value: Config | Scenario | PathMap['paths'][number], approv
   return Boolean(approval?.decisionRef?.trim() && !Number.isNaN(Date.parse(approval.at)) && approval.contentHash === approvalHash(value));
 }
 
+/** Persist the first unfinished path in stable numeric order without deleting or renumbering IDs. */
+export function reviewPath(root: string): ReviewCursor {
+  const map = readJson<PathMap>(join(root, 'map.json'));
+  const paths = new Map(map.paths.map(path => [safeId(path.id), path]));
+  assert.equal(paths.size, map.paths.length, 'Duplicate mapped path IDs.');
+  const file = join(root, 'review.json');
+  const previous = existsSync(file) ? readJson<ReviewCursor>(file) : undefined;
+  if (previous) {
+    assert.ok(previous.version === 1 && Array.isArray(previous.order), 'Unknown review cursor format; preserve it and reconcile before continuing.');
+  }
+  const compare = (a: string, b: string): number => a.localeCompare(b, 'en', { numeric: true });
+  const added = [...paths.keys()].filter(id => !previous?.order.includes(id)).sort(compare);
+  if (previous) {
+    assert.ok(previous.order.every(id => paths.has(id)), 'A mapped path ID disappeared: keep its ID and record an excluded disposition instead of renumbering/removing it.');
+    const numbered = previous.order.filter(id => /^PATH-\d+$/i.test(id));
+    const maximum = Math.max(0, ...numbered.map(id => Number(id.slice(5))));
+    const addedNumbers = added.filter(id => /^PATH-\d+$/i.test(id)).map(id => Number(id.slice(5)));
+    assert.ok(addedNumbers.every((number, index) => number === maximum + index + 1), 'New paths must use consecutive numbers after the highest assigned PATH number; never reuse gaps, skip numbers or renumber existing paths.');
+  }
+  const order = previous ? [...previous.order, ...added] : added;
+  const completedPathIds = order.filter(id => {
+    const path = paths.get(id)!;
+    if (!hasApproval(path, path.approval)) {
+      return false;
+    }
+    if (path.disposition === 'excluded') {
+      return Boolean(path.reason.trim() && path.scenarioIds.length === 0);
+    }
+    return path.disposition === 'included' && path.scenarioIds.length > 0 && path.scenarioIds.every(scenarioId => {
+      const scenarioFile = join(root, 'scenarios', `${safeId(scenarioId)}.json`);
+      if (!existsSync(scenarioFile)) {
+        return false;
+      }
+      const scenario = readJson<Scenario>(scenarioFile);
+      return scenario.id === scenarioId && scenario.pathId === id && hasApproval(scenario, scenario.approval);
+    });
+  });
+  const pendingPathIds = order.filter(id => !completedPathIds.includes(id));
+  const overridePathId = previous?.overridePathId && pendingPathIds.includes(previous.overridePathId) ? previous.overridePathId : null;
+  const currentPathId = overridePathId ?? pendingPathIds[0] ?? null;
+  const cursor: ReviewCursor = {
+    version: 1, order, currentPathId, overridePathId, pendingPathIds, completedPathIds,
+    scenarioIds: currentPathId ? paths.get(currentPathId)!.scenarioIds : [], jumps: previous?.jumps ?? [],
+  };
+  writeJson(file, cursor);
+  return cursor;
+}
+
+export function focusReviewPath(root: string, id: string, decisionRef: string, reason: string): ReviewCursor {
+  assert.ok(decisionRef.trim() && reason.trim(), 'An actual user decision reference and reason are required for a review jump.');
+  const cursor = reviewPath(root);
+  assert.ok(cursor.pendingPathIds.includes(id), 'Choose an existing unfinished path.');
+  cursor.jumps.push({ from: cursor.currentPathId, to: id, decisionRef, reason, at: new Date().toISOString() });
+  cursor.overridePathId = id;
+  writeJson(join(root, 'review.json'), cursor);
+  return reviewPath(root);
+}
+
+export function nextPathId(root: string): string {
+  const map = readJson<PathMap>(join(root, 'map.json'));
+  const cursor = reviewPath(root);
+  const ids = [...cursor.order, ...map.paths.map(path => path.id)].filter(id => /^PATH-\d+$/i.test(id));
+  return `PATH-${String(Math.max(0, ...ids.map(id => Number(id.slice(5)))) + 1).padStart(3, '0')}`;
+}
+
 /** Record a real user's decision after the interview, never infer consent from silence. */
 export function approve(root: string, subject: string, decisionRef: string): void {
   assert.ok(decisionRef.trim(), 'A reference to the actual user decision is required.');
@@ -106,6 +171,11 @@ export function approve(root: string, subject: string, decisionRef: string): voi
     path = join(root, 'scenarios', `${safeId(subject)}.json`);
     value = readJson<Scenario>(path);
   }
+  if (subject !== 'setup' && !hasApproval(value, (value as Scenario).approval)) {
+    const targetPath = subject.startsWith('path:') ? (value as PathMap['paths'][number]).id : (value as Scenario).pathId;
+    const cursor = reviewPath(root);
+    assert.equal(targetPath, cursor.currentPathId, `Review ${cursor.currentPathId ?? '(no unfinished path)'} first. An explicit user-authorized focus-path decision is required to jump.`);
+  }
   const approval: Approval = { decisionRef, at: new Date().toISOString(), contentHash: approvalHash(value) };
   if (subject === 'setup') {
     (value as Config).setupApproval = approval;
@@ -113,6 +183,9 @@ export function approve(root: string, subject: string, decisionRef: string): voi
     (value as Scenario).approval = approval;
   }
   writeJson(path, map ?? value);
+  if (subject !== 'setup') {
+    reviewPath(root);
+  }
 }
 
 /** Validate approved mapping and scenarios, including additions, removals and identity allocations. */
@@ -121,6 +194,7 @@ export function loadSuite(root: string): Suite {
   const map = readJson<PathMap>(join(root, 'map.json'));
   assert.equal(config.version, 1);
   assert.equal(map.version, 1);
+  reviewPath(root);
   assert.ok(hasApproval(config, config.setupApproval), 'Setup needs current user approval.');
   assert.ok(config.environments.length > 0, 'At least one environment is required.');
   assert.notEqual(config.mutationPolicy, 'undecided', 'Set the mutation boundary.');
