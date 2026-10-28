@@ -4,6 +4,8 @@
 
 Render and inspect the first-run report **before** requesting lock-in. Present the actual scenarios and dispositions, unresolved defects, deferred coverage and evidence limitations. Grill remaining specification questions. Ask the user to confirm that this is the repeatable scenario contract, including any explicitly deferred cases; this is not approval to ignore bugs or deploy.
 
+If that discussion changes a scenario or report, save, regenerate and present the revised document before the next question or lock-in request. Name the reviewed scenario IDs/revision so the answer refers to the visible contract.
+
 After the actual confirmation:
 
 ```text

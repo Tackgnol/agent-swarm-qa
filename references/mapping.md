@@ -11,10 +11,11 @@ Use the aliases/private prerequisite names settled during Init. Path questions e
 This adapts the frontier-based grilling approach: every answer settles a decision and unlocks its dependent branches. Always present the current path and its proposed scenarios, even if no ambiguity is obvious. Do not execute the proposed scenario to discover what the expectation ought to be.
 
 1. Establish discoverable facts yourself: route, controls, current data shape, available roles/tools and existing tests. Delegate read-only fact gathering when permitted. Ask the human for intent, not codebase facts.
-2. Present a compact path card: purpose/identities → proposed preconditions and steps → exact expected outcomes → evidence and cleanup → critical versus optional.
-3. Ask the ready frontier of questions for this path, with recommendations and a concrete reason for each. Use concise tool questions, normally one to three at a time. Hold questions whose answers depend on an unresolved decision for the next round.
-4. Challenge the branches that matter: ownership versus membership, private fields, persistence versus optimistic appearance, cancellation, invalid input, live propagation and irreversible/external effects. Choose relevant branches; the human should not answer a generic checklist for every screen.
-5. Reflect answers into the scenario and decision log, show material changes, and obtain approval of this exact contract. Then move to the next path. An explicit approval of a displayed batch can settle that batch.
+2. Persist the proposed path/scenarios and unresolved decisions **before asking**. Regenerate the current review document; by default use `node <skill>/scripts/qa.ts report <qa-root>` for the planning report. Drafts remain unapproved/not run. Use the user's existing review document if one is already established, keeping it synchronized with the scenario files rather than creating competing copies.
+3. Present that updated document: open the available preview and send a clickable absolute link plus a compact path card in chat. Include path/scenario IDs, the current content revision/fingerprint, preconditions, steps, expected outcomes, evidence, cleanup and criticality. Clearly label unresolved choices/proposals. If a panel is queued or cannot open, the chat summary supplies the readable material. Finish this presentation before invoking the question tool.
+4. Ask the ready frontier of questions about **that displayed version**, with recommendations and a concrete reason for each. Use concise tool questions, normally one to three at a time. Hold questions whose answers depend on an unresolved decision for the next round. Never ask about an unwritten revision or launch questions while the document is still being generated.
+5. Challenge the branches that matter: ownership versus membership, private fields, persistence versus optimistic appearance, cancellation, invalid input, live propagation and irreversible/external effects. Choose relevant branches; the human should not answer a generic checklist for every screen.
+6. Reflect answers into the scenario and decision log, regenerate and present the updated document, then ask any dependent questions or final approval of that exact contract. Repeat the document-first sequence after material changes. Then move to the next path. An explicit approval of a displayed batch can settle that batch; do not require a redundant read receipt or reapprove unchanged content.
 
 Example path card, **not preapproved behavior**:
 
@@ -32,7 +33,7 @@ Dependent question, after authority is settled: Which fields must remain private
 
 ## Record approvals and revisions
 
-Record actual user answers in `interview/decisions.md`. Update the mapped path's disposition before approving it. The helper records the current content hash:
+Record actual user answers in `interview/decisions.md`, including which displayed path/scenario revision they address. Update the mapped path's disposition before approving it. If content changes after presentation, show the revised document before asking for approval; an answer about the earlier document does not approve undisclosed changes. The helper records the current content hash:
 
 ```text
 node <skill>/scripts/qa.ts approve <qa-root> path:PATH-004 <actual-decision-reference>

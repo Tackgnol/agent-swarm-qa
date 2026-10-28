@@ -25,6 +25,8 @@ Separate **setup decisions**, **private prerequisites**, and **scenario intent**
 
 ## User scrutiny is part of the product
 
+**Document before question:** save the current scenario proposal and regenerate its review document/report, then open or link that exact version for the user before asking scenario questions or approval. Send the document link and a short path/scenario summary before opening the question tool. Await document generation/presentation; do not dispatch questions in parallel with it. Repeat this order for revisions and unexpected-behavior discussions. A queued editor panel alone is not presentation: include a readable summary/link in chat. No separate read-receipt confirmation is needed.
+
 Always review each newly mapped path with the user, even if it looks obvious. Investigate discoverable facts yourself; grill for intent, expectations and tradeoffs. Ask the ready questions for **one path at a time**, give recommendations, wait for answers, then follow dependent branches. Use available user-input tools; never treat elapsed time as an answer. Record actual decisions, not inferred consent. Previously explicit approvals remain valid for unchanged content.
 
 Run neither a proposed scenario nor a revised expectation before its approval. Setup discovery can inspect source and read-only UI within the confirmed boundaries. If the user explicitly approves a displayed batch, record that answer for those exact cases rather than demanding redundant individual approvals. A new target build requires new evidence, not automatically a new specification interview.
