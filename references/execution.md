@@ -23,7 +23,7 @@ When actual behavior differs from an approved expectation, preserve it as a fail
 1. Record the observation and affected scenario; add a focused open question in `run.json` and the checkpoint.
 2. Update the editable review document/planning report with the observation, affected scenario IDs and explicitly proposed expectations/open choices; preserve the historical run snapshot. Present the saved document/link and a short summary **before** re-grilling that branch. Follow Mapping's document-first gate; current behavior is not correct by default.
 3. Pause dependent cases until the answer; continue independent approved work.
-4. If the contract changes, revise and present the updated document before requesting reapproval of affected scenario/path/setup content. Start a new scrutiny run with the revised snapshot; preserve the earlier run and its questions/results.
+4. If the contract changes, present the semantic delta and updated coverage batch before requesting confirmation of affected content. Reuse settled rules instead of reopening every case. Start a new scrutiny run with the revised snapshot; preserve the earlier run and its questions/results.
 
 Stop the affected lane on 429, unhealthy service behavior or unintended data changes. Preserve the first failure and make a controlled reproduction with isolated state. Further attempts need a new hypothesis, not a larger retry count. Record failures and later passes together; explain a demonstrated harness correction or expected behavior explicitly. A product fix belongs to a new observed build/run.
 
@@ -50,3 +50,5 @@ The helper checks the entire config/map/scenario fingerprint. Changed expectatio
 On resume, inspect the checkpoint, active agent/job state, snapshots, append-only attempts and pending fixture dependencies before restarting anything. Coordinate shared browser/room ownership. Carry earlier passes forward only at an applicable build and boundary, with provenance; otherwise list the missing retest. Never turn an unknown job status into a pass.
 
 At any stop, reconcile worker results, save the next action, retain cleanup debt and run `qa.ts report <qa-root> <run-id>`. A paused or failed run still produces the standard report. If malformed artifacts prevent rendering, preserve them, record the validation error and produce the same report sections manually with readiness unproven; repair only demonstrable data-format mistakes, preserving originals.
+
+Summarize missing execution by capability, cause and next action, with detailed IDs in the report. Not-run cases call for execution; blocked cases call for resolving the named prerequisite. Neither status requires another scenario interview. Ask only when progress depends on a real product decision or changed authorization.

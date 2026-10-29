@@ -1,6 +1,6 @@
 ---
 name: agent-swarm-qa
-description: Initialize a reusable QA workspace, interview the user about each mapped path and scenario, run approved journeys with coordinated agents, lock the suite, and produce standard HTML/Markdown/JSON evidence reports. Use for broad web-app QA, canary retests and production-readiness checks; not single-bug implementation or a penetration test.
+description: Establish feature intent and risks, derive a reusable QA suite, run approved journeys with coordinated agents, and produce standard HTML/Markdown/JSON evidence reports. Use for broad web-app QA, canary retests and production-readiness checks; not single-bug implementation or a penetration test.
 ---
 
 # Agent Swarm QA
@@ -14,7 +14,7 @@ Read only the phase reference needed now. Bundled helpers use Node >=22.18 with 
 | Phase | Reference | Completion gate |
 |---|---|---|
 | Init | [init.md](references/init.md) | Non-sensitive setup decisions confirmed; required account aliases/env key names allocated; private file and output layout created |
-| Mapping | [mapping.md](references/mapping.md) | Each path presented and grilled with its scenarios; inclusion/exclusion and current scenario content approved by the user |
+| Mapping | [mapping.md](references/mapping.md) | Feature rules and risks established; agent derives cases and obtains one displayed scope confirmation, with genuine ambiguities resolved or deferred |
 | First run | [execution.md](references/execution.md) | Every approved scenario has an honest disposition; unexpected specification questions resolved or explicitly pending |
 | Lock in | [lock-and-report.md](references/lock-and-report.md) | User reviews the report and confirms the scenario contract; a fingerprint records the reviewed baseline |
 | Retest / resume | [execution.md](references/execution.md), then [lock-and-report.md](references/lock-and-report.md) | Execute unchanged locked cases on the observed build; review changed expectations before relocking; always regenerate the standard report |
@@ -24,17 +24,17 @@ Read only the phase reference needed now. Bundled helpers use Node >=22.18 with 
 
 Separate **setup decisions**, **private prerequisites**, and **scenario intent**. Private URLs, login parameters and account values belong in the dedicated Init handoff to `.env.qa`, not a browser-matrix, fixture-policy or scenario question. Once allocated, refer to their aliases/key names and check presence locally. A later missing prerequisite gets its own focused handoff; do not reopen unrelated setup questions.
 
-## User scrutiny is part of the product
+## Interview for intent; derive the tests
 
-**Ordered review:** before each path/scenario question, run `node <skill>/scripts/qa.ts next-path <qa-root>` and use its `currentPathId` and scenario IDs. The persisted `review.json` cursor selects the first unfinished path in numeric order and keeps it current until its path disposition and scenarios are approved. Show progress, keep IDs stable, and never select a later path because it looks relevant or easy. Only an explicit user decision/reason may override the order via `focus-path`; unchanged saved approvals remain valid. See Mapping for allocation, batches and resume reconciliation.
+The human supplies product intent; the agent owns test design. Discuss a coherent capability such as party collaboration, not each route, click or generated QA case. Establish the goal, actors, behavior rules, release-critical outcomes and permitted effects. Investigate discoverable facts yourself. Ask targeted questions only where intent is uncertain, contradictory or consequential; settled behavior needs no ceremonial grilling. Detailed scenario-by-scenario review is opt-in.
 
-**Document before question:** save the current scenario proposal and regenerate its review document/report, then open or link that exact version for the user before asking scenario questions or approval. Send the document link and a short path/scenario summary before opening the question tool. Await document generation/presentation; do not dispatch questions in parallel with it. Repeat this order for revisions and unexpected-behavior discussions. A queued editor panel alone is not presentation: include a readable summary/link in chat. No separate read-receipt confirmation is needed.
+**Document before question:** persist the capability brief or proposed revision and regenerate its review document, then present the exact version before asking. Show goal/rules/risks and unresolved decisions in a compact summary; keep the derived cases available as detail. After deriving cases, obtain one explicit confirmation of the displayed scope and boundaries, covering that batch without a question for each case. Actual consent is required; a recommendation or silence is not confirmation. Previously explicit approvals remain valid for unchanged content.
 
-Before each scenario question, navigate/scroll the existing review preview to that card (`report.html#case-QA-001`, using the actual ID) and verify its heading is visible. Reuse the preview tab and include the same direct link in the question context. On a new question, move to the new card; after regeneration, restore the current card. If the viewer cannot be controlled, provide the direct link and scenario excerpt and say automatic scrolling was unavailable rather than claiming it happened.
+Focus the preview on the capability being discussed (`report.html#path-PATH-001`); use `#case-QA-001` when a specific example needs discussion. Reuse the tab, restore focus after regeneration and verify the heading is visible. If viewer control is unavailable, provide the direct link and excerpt and disclose that limitation.
 
-Always review each newly mapped path with the user, even if it looks obvious. Investigate discoverable facts yourself; grill for intent, expectations and tradeoffs. Ask the ready questions for **one path at a time**, give recommendations, wait for answers, then follow dependent branches. Use available user-input tools; never treat elapsed time as an answer. Record actual decisions, not inferred consent. Previously explicit approvals remain valid for unchanged content.
+**Stable bookkeeping:** `next-path` and `review.json` track the first unfinished path; they are an approval frontier, not a human question queue. Keep IDs stable and use `approve-batch` to record a confirmed capability or suite across its displayed paths and cases in frontier order. Existing fine-grained paths can be discussed together without renumbering. A deliberate order change uses a user-authorized `focus-path`. See Mapping for batch recording and migration.
 
-Run neither a proposed scenario nor a revised expectation before its approval. Setup discovery can inspect source and read-only UI within the confirmed boundaries. If the user explicitly approves a displayed batch, record that answer for those exact cases rather than demanding redundant individual approvals. A new target build requires new evidence, not automatically a new specification interview.
+Execute the confirmed scope, keeping expectations independent of observed results. A new build requires new evidence, not another specification interview. Missing coverage is work for the agent or a reported execution block; it is never an automatic request to review every listed QA ID.
 
 ## Swarm contract
 

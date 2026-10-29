@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rmSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { approve, focusReviewPath, nextPathId, readJson, reviewPath, writeJson } from '../scripts/workspace.ts';
+import { approve, approveBatch, focusReviewPath, loadSuite, nextPathId, readJson, reviewPath, writeJson } from '../scripts/workspace.ts';
+import { main } from '../scripts/qa.ts';
 import type { PathMap, Scenario } from '../scripts/models.ts';
 import { fixture } from './helpers.ts';
 
@@ -81,5 +82,74 @@ test('editing an earlier approved scenario returns it to the review frontier', (
     writeJson(join(f.root, 'scenarios', 'QA-001.json'), scenario);
     assert.equal(reviewPath(f.root).currentPathId, 'PATH-001');
     assert.throws(() => approve(f.root, 'path:PATH-008', 'offline-unrequested-jump'), /Review PATH-001 first/);
+  } finally { rmSync(f.project, { recursive: true, force: true }); }
+});
+
+test('one scope confirmation records a large derived batch and preserves prior decisions', () => {
+  const f = withPendingPaths();
+  try {
+    const map = readJson<PathMap>(join(f.root, 'map.json'));
+    const path = map.paths.find(entry => entry.id === 'PATH-008')!;
+    path.intent = { goal: 'Members manage durable character state', rules: ['Ownership controls editing', 'Saved values survive reload'], risks: ['Lost work', 'Unauthorized edits'] };
+    const template = readJson<Scenario>(join(f.root, 'scenarios', 'QA-008.json'));
+    for (let number = 32; number <= 140; number += 1) {
+      const id = `QA-${String(number).padStart(3, '0')}`;
+      path.scenarioIds.push(id);
+      writeJson(join(f.root, 'scenarios', `${id}.json`), { ...template, id, approval: null });
+    }
+    writeJson(join(f.root, 'map.json'), map);
+    const pending = reviewPath(f.root).pendingPathIds;
+    const cursor = JSON.parse(main(['approve-batch', f.root, 'offline-one-displayed-scope-confirmation', ...pending]));
+    assert.equal(cursor.currentPathId, null);
+    const suite = loadSuite(f.root);
+    assert.equal(suite.scenarios.length, 140);
+    assert.equal(suite.scenarios.find(entry => entry.id === 'QA-140')!.approval!.decisionRef, 'offline-one-displayed-scope-confirmation');
+    assert.equal(suite.scenarios.find(entry => entry.id === 'QA-001')!.approval!.decisionRef, 'offline-test-fixture');
+    assert.equal(suite.map.paths.find(entry => entry.id === 'PATH-007')!.approval!.decisionRef, 'offline-prior-reviewed-path');
+    const hash = suite.hash;
+    approveBatch(f.root, 'offline-repeated-confirmation', pending);
+    assert.equal(loadSuite(f.root).hash, hash);
+    assert.equal(loadSuite(f.root).scenarios.find(entry => entry.id === 'QA-140')!.approval!.decisionRef, 'offline-one-displayed-scope-confirmation');
+    path.intent.rules.push('A new proposed editing permission');
+    // Preserve the just-recorded approvals while changing only the feature rule.
+    const changed = readJson<PathMap>(join(f.root, 'map.json'));
+    changed.paths.find(entry => entry.id === path.id)!.intent = path.intent;
+    writeJson(join(f.root, 'map.json'), changed);
+    assert.equal(reviewPath(f.root).currentPathId, 'PATH-008');
+    assert.throws(() => loadSuite(f.root), /reviewed disposition/);
+  } finally { rmSync(f.project, { recursive: true, force: true }); }
+});
+
+test('batch preflight rejects skipped paths or malformed later cases without partial approval', () => {
+  const f = withPendingPaths();
+  try {
+    const mapFile = join(f.root, 'map.json');
+    const caseFile = join(f.root, 'scenarios', 'QA-008.json');
+    const originalMap = readFileSync(mapFile, 'utf8');
+    const originalCase = readFileSync(caseFile, 'utf8');
+    assert.throws(() => approveBatch(f.root, '', ['PATH-008']), /actual user/);
+    assert.throws(() => approveBatch(f.root, 'offline', ['PATH-008', 'PATH-008']), /once/);
+    assert.throws(() => approveBatch(f.root, 'offline', ['PATH-008', 'PATH-010']), /frontier/);
+    assert.throws(() => approveBatch(f.root, 'offline', ['PATH-009', 'PATH-008']), /frontier/);
+    assert.throws(() => approveBatch(f.root, 'offline', ['PATH-UNKNOWN']), /Unknown/);
+    const laterFile = join(f.root, 'scenarios', 'QA-009.json');
+    const later = readJson<Scenario>(laterFile);
+    later.pathId = 'PATH-008';
+    writeJson(laterFile, later);
+    assert.throws(() => approveBatch(f.root, 'offline-displayed-batch', ['PATH-008', 'PATH-009']), /belong/);
+    assert.equal(readFileSync(mapFile, 'utf8'), originalMap);
+    assert.equal(readFileSync(caseFile, 'utf8'), originalCase);
+    assert.equal(reviewPath(f.root).currentPathId, 'PATH-008');
+  } finally { rmSync(f.project, { recursive: true, force: true }); }
+});
+
+test('a focused capability batch returns to the earlier unfinished frontier', () => {
+  const f = withPendingPaths();
+  try {
+    focusReviewPath(f.root, 'PATH-031', 'offline-priority-request', 'Resolve the host capability first');
+    const cursor = approveBatch(f.root, 'offline-host-scope-confirmation', ['PATH-031']);
+    assert.equal(cursor.currentPathId, 'PATH-008');
+    assert.equal(cursor.overridePathId, null);
+    assert.equal(cursor.jumps.length, 1);
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });

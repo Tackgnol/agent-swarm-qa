@@ -24,11 +24,13 @@ Without a run ID, the helper generates the planning report from current drafts. 
 
 - `report.json`: machine-readable recommendation, build/scope, counts, every scenario and attempt, evidence, findings and limits.
 - `report.md`: standard handoff and issue-triage summary.
-- `report.html`: offline visual review with status metrics, scenario/expected/actual cards, attempt history and inline inspected screenshots. No CDN, telemetry or external scripts. Responsive and printable; JSON/MD remain available alongside it.
+- `report.html`: offline visual review with capability goals/rules/risks and coverage counts, detailed scenario/expected/actual cards, attempt history and inline inspected screenshots. No CDN, telemetry or external scripts. Responsive and printable; JSON/MD remain available alongside it.
 
 The standard sections are **Recommendation; Scope & build; Scenario results; Evidence; Findings; Automated suites; Contract fuzzing; Cleanup; Limits & open questions**. Every report includes these concepts even when empty or not run. A failed/interrupted run is not exempt. The generator's recommendation is conservative evidence triage, not an autonomous release approval: disclose any additional project gate not represented by the recorded scenarios.
 
 Critical failures produce a hold. Missing critical coverage, unknown build observation, open questions, unexplained failure/pass pairs or pending cleanup make readiness unproven. Optional missing browser/device checks remain limitations. Known optional defects must stay visible; if project policy makes them blocking, update that criticality with the user's decision. No local/mock pass substitutes for a deployed real-host claim.
+
+Lead incomplete-coverage discussion with capability counts, causes and next actions; keep individual case IDs in details. These are execution gaps, not a demand for the human to approve the same requirements again. Prioritize criticality by agreed product risk, preserving the recorded reasons for any changes.
 
 Passes with no evidence references or inspected captures are inconclusive. The actual boundary label must match the approved claim; different boundaries remain inconclusive for that scenario. These checks catch mismatches and omissions, not fabricated observations: the reporter summarizes recorded evidence and is not an execution-attestation or credential-audit system. The agent must inspect the evidence and disclose its limits.
 

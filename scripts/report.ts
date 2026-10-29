@@ -39,7 +39,8 @@ export function buildReport(suite: Suite, run: Run, results: Result[]): Report {
     reasons.push(`Critical failures: ${blockers.map(entry => entry.scenario.id).join(', ')}.`);
   }
   if (gaps.length) {
-    reasons.push(`Critical coverage is incomplete: ${gaps.map(entry => entry.scenario.id).join(', ')}.`);
+    const pathCount = new Set(gaps.map(entry => entry.scenario.pathId)).size;
+    reasons.push(`Critical coverage is incomplete: ${gaps.length} scenarios across ${pathCount} ${pathCount === 1 ? 'path' : 'paths'}. See capability coverage and case details; these are execution gaps, not interview questions.`);
   }
   if (!run.observedBuild.trim() || run.observedBuild.trim().toLowerCase() === 'unverified') {
     reasons.push('The running build has not been observed.');
@@ -112,6 +113,14 @@ const styles = `:root{font-family:system-ui,sans-serif;color:#17232c;background:
 
 export function renderHtml(report: Report, directory: string): string {
   const budget = { used: 0 };
+  const capabilities = report.paths.map(path => {
+    const cases = report.cases.filter(entry => entry.scenario.pathId === path.id);
+    const gaps = cases.filter(entry => entry.scenario.critical && !['passed', 'failed'].includes(entry.status));
+    return `<article class="card" id="path-${html(path.id)}"><p class="meta"><a href="#path-${encodeURIComponent(path.id)}">${html(path.id)}</a> · ${html(path.disposition)}</p><h3>${html(path.title)}</h3>
+      ${path.intent ? `<p>${html(path.intent.goal)}</p><h4>Behavior rules</h4>${list(path.intent.rules)}<h4>Risks to cover</h4>${list(path.intent.risks)}` : `<p>${html(path.reason)}</p>`}
+      <p>${cases.filter(entry => entry.status === 'passed').length}/${cases.length} cases passed · ${gaps.length} critical execution gaps</p>
+      <details><summary>Derived cases (${cases.length})</summary><ul>${cases.map(entry => `<li><a href="#case-${encodeURIComponent(entry.scenario.id)}">${html(entry.scenario.id)} · ${html(entry.scenario.title)}</a> · ${entry.status}</li>`).join('')}</ul></details></article>`;
+  }).join('');
   const cards = report.cases.map(({ scenario, status, attempts }) => `<article class="card" id="case-${html(scenario.id)}">
     <span class="badge ${status}">${status}</span> <span class="meta"><a href="#case-${encodeURIComponent(scenario.id)}" aria-label="Link to ${html(scenario.id)}">${html(scenario.id)}</a> · ${scenario.critical ? 'Critical' : 'Optional'} · ${html(scenario.pathId)}</span>
     <h2>${html(scenario.title)}</h2><p class="meta">${html(scenario.boundary)} · identities: ${html(scenario.identities.join(', '))}</p>
@@ -122,9 +131,10 @@ export function renderHtml(report: Report, directory: string): string {
   const findings = report.run.findings.map(item => `<tr><td>${html(item.id)}</td><td>${html(item.title)}</td><td>${html(item.kind)}</td><td>${html(item.impact)}</td><td>${html(item.scenarioIds.join(', '))}</td><td>${item.issueUrl && /^https?:\/\//.test(item.issueUrl) ? `<a href="${html(item.issueUrl)}" rel="noreferrer">Issue</a>` : 'Local / pending'}</td></tr>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>${html(report.project)} — QA ${html(report.run.id)}</title><style>${styles}</style></head><body><main>
     <header><div class="eyebrow">Agent Swarm QA · ${html(report.run.phase)}</div><h1>${html(report.project)}<br>QA evidence report</h1><span class="badge ${report.recommendation}">${html(report.recommendation)}</span>${list(report.reasons)}<p class="meta">Run ${html(report.run.id)} · ${html(report.generatedAt)}</p></header>
-    <nav><a href="#scope">Scope & build</a><a href="#scenarios">Scenarios</a><a href="#findings">Findings</a><a href="#automation">Automation</a><a href="#cleanup">Cleanup & limits</a></nav>
+    <nav><a href="#scope">Scope & build</a><a href="#capabilities">Capability coverage</a><a href="#scenarios">Scenarios</a><a href="#findings">Findings</a><a href="#automation">Automation</a><a href="#cleanup">Cleanup & limits</a></nav>
     <div class="summary">${Object.entries(report.counts).map(([status, count]) => `<div class="metric"><strong>${count}</strong>${html(status)}</div>`).join('')}</div>
     <section id="scope"><h2>Scope & build</h2><p>Target: ${html(report.target.appUrl)}<br>Environment: ${html(report.target.name)}<br>Observed build: ${html(report.run.observedBuild)}</p><p class="meta">Suite SHA-256: <code>${html(report.suiteHash)}</code></p><details><summary>Approved matrix, identities and mapped paths</summary><p>Browsers: ${html(report.coverage.browsers.join(', ') || 'Undecided')}<br>Viewports: ${html(report.coverage.viewports.join(', ') || 'Undecided')}<br>Locales: ${html(report.coverage.locales.join(', ') || 'Undecided')}</p>${list(report.identities.map(identity => `${identity.alias}: ${identity.kind}, ${identity.role}`))}${list(report.paths.map(path => `${path.id} · ${path.route} · ${path.title} · ${path.disposition}`))}</details><h3>Excluded paths</h3>${list(report.excludedPaths.map(path => `${path.title}: ${path.reason}`))}<h3>Open questions</h3>${list(report.run.openQuestions)}</section>
+    <section id="capabilities"><h2>Capability coverage</h2><p>Review the behavior rules and risks here. Detailed cases remain available below; missing execution evidence does not require another interview.</p>${capabilities || '<p>No capabilities mapped yet.</p>'}</section>
     <section id="scenarios"><h2>Scenario evidence</h2>${cards || '<p>No scenarios approved or executed yet.</p>'}</section>
     <section id="findings"><h2>Findings</h2><p class="meta">Storage: ${html(report.issueStorage.provider)} · ${html(report.issueStorage.destination || 'Undecided')} · mode: ${html(report.issueStorage.mode)}</p><div class="table-wrap"><table><thead><tr><th>ID</th><th>Finding</th><th>Kind</th><th>Impact</th><th>Cases</th><th>Tracker</th></tr></thead><tbody>${findings || '<tr><td colspan="6">No findings recorded. This does not establish full coverage.</td></tr>'}</tbody></table></div></section>
     <section id="automation"><h2>Automation & contract fuzzing</h2><p>Counts below use different units and are not added to the scenario totals.</p>${list(report.run.automated.map(item => `${item.name} [${item.boundary}]: ${item.passed} passed / ${item.failed} failed / ${item.skipped} skipped. Log: ${item.log}`))}${list(report.run.fuzzing.map(item => `${item.name}: ${item.executed} executed; raw ${item.rawErrors} errors / ${item.rawWarnings} warnings; ${item.confirmedDefects} confirmed defects. Log: ${item.log}`))}</section>
@@ -141,6 +151,11 @@ export function renderMarkdown(report: Report): string {
     ...report.paths.map(path => `- ${path.id}: ${path.route} — ${path.title} (${path.disposition})`), '',
     '## Scenario results', '', ...Object.entries(report.counts).map(([status, count]) => `- ${status}: ${count}`), '',
   ];
+  for (const path of report.paths) {
+    if (path.intent) {
+      lines.push(`### ${path.id}: ${path.title}`, '', path.intent.goal, '', 'Behavior rules:', ...path.intent.rules.map(rule => `- ${rule}`), '', 'Risks to cover:', ...path.intent.risks.map(risk => `- ${risk}`), '');
+    }
+  }
   for (const entry of report.cases) {
     lines.push(`### ${entry.scenario.id}: ${entry.scenario.title}`, '', `Status: ${entry.status}; critical: ${entry.scenario.critical}`, '',
       'Expected:', ...entry.scenario.expected.map(item => `- ${item}`), '',

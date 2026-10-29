@@ -3,7 +3,7 @@
 A skill for turning exploratory web-app QA into a reviewed, repeatable suite.
 
 1. **Init:** choose environments, guest/authenticated paths, account roles, issue storage and coverage. Keep secrets in a private `.env.qa` that the agent never opens.
-2. **Mapping:** discover journeys, present each path and proposed scenarios, and grill the decisions with the user.
+2. **Mapping:** establish capability goals, behavior rules and risks; derive tests and confirm the displayed scope as a batch. Ask about genuine uncertainty rather than walking through every case.
 3. **First run under scrutiny:** execute only approved scenarios, preserve evidence, ask again when expectations are ambiguous, and retain useful TS/JS runners.
 4. **Lock in:** review a visual report and record the agreed scenario fingerprint. Known failures remain failures.
 5. **Retest:** run the same contract against a new observed build and always produce HTML, Markdown and JSON reports.
@@ -16,7 +16,7 @@ Install this folder as `agent-swarm-qa` in your agent's skills directory, or poi
 
 Example request:
 
-> Use $agent-swarm-qa to initialize QA for this app. Review each path and scenario with me, test the approved suite on canary, keep screenshots, and store confirmed findings locally.
+> Use $agent-swarm-qa to initialize QA for this app. Discuss feature intent and unresolved decisions with me, derive the cases, confirm the coverage summary, then test on canary with screenshots and local findings.
 
 Helpers run relative to this skill's location:
 
@@ -28,8 +28,7 @@ node scripts/qa.ts check-env <qa-root>
 node scripts/qa.ts next-path-id <qa-root>
 node scripts/qa.ts next-path <qa-root>
 node scripts/qa.ts approve <qa-root> setup <actual-user-decision-reference>
-node scripts/qa.ts approve <qa-root> path:PATH-001 <actual-user-decision-reference>
-node scripts/qa.ts approve <qa-root> QA-001 <actual-user-decision-reference>
+node scripts/qa.ts approve-batch <qa-root> <actual-scope-decision-reference> PATH-001 PATH-002
 node scripts/qa.ts run <qa-root> canary <run-id> first-run
 node scripts/with-qa-env.ts <qa-root>/.env.qa <qa-root>/runners/<trusted-runner.ts>
 node scripts/qa.ts report <qa-root> <run-id>
@@ -46,7 +45,9 @@ Private host URLs use `environment.hostUrlEnv` references; additional private co
 
 QA output lives under the product's `.scratch/QA/<project>/`, not this skill repository. Existing workspaces, credentials and run IDs are not overwritten. Local report generation, locking a contract and selecting an issue tracker do not authorize deployment, publication or unrelated external writes.
 
-Review uses a persisted numeric frontier: finish each path and its scenarios before advancing. IDs stay stable; new paths append after the highest assigned number. Out-of-order approvals are rejected. A user-authorized `focus-path <qa-root> <path-id> <decision-ref> <reason>` temporarily changes the frontier and records the reason, then returns to earlier unfinished work.
+The interview is about capabilities, not a queue of QA IDs. New map entries can store `intent: { goal, rules, risks }`; the report shows these briefs and coverage counts before detailed cases. Existing small paths can share a capability discussion and one scope confirmation without renumbering. Unchanged saved approvals remain valid.
+
+Approval bookkeeping uses a persisted numeric frontier; batches follow that order and fingerprint their exact paths/cases. New paths append after the highest assigned number. A user-authorized `focus-path <qa-root> <path-id> <decision-ref> <reason>` records a deliberate order change and then returns to earlier unfinished work. Individual `approve` commands still work for existing workspaces. The frontier is not a requirement to ask a question for every path or case; incomplete execution coverage is not an interview backlog.
 
 ## Export approved specs to Gherkin
 

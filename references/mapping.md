@@ -1,69 +1,72 @@
-# Mapping and grilling
+# Mapping: intent first, tests derived
 
-Map **journeys and states**, not just route strings: a path can include an inline panel, modal, approval tab or receiving view on the same route. Explore current source/navigation and read-only UI within setup boundaries. Reconcile existing tests and known defects, but do not use old QA notes as unquestioned specifications.
+The interview discovers the essence of a capability. The agent turns that understanding into tests. Optimize questions for decisions resolved, not cases visited. A suite with 140 scenarios may need only a handful of capability discussions; its size is not an interview quota.
 
-Create `map.json` and proposed `scenarios/<ID>.json` using the examples. Keep stable IDs. Each map entry is included with scenario IDs, excluded with rationale, or pending review. Each scenario declares identities, preconditions, ordered steps, observable expectations, criticality, test boundary, evidence and cleanup. Avoid vague “works correctly” assertions and unspecified account context.
+## Discover and summarize
 
-Use the aliases/private prerequisite names settled during Init. Path questions establish expected behavior, not credentials, room URLs or login parameters. If a new prerequisite appears, return only that dependency to the dedicated private handoff in Init; keep the current scenario discussion and existing coverage/policy decisions separate.
+Explore current source/navigation, existing tests and read-only UI within setup boundaries. Map journeys and states across routes, panels, dialogs and receiving views. Existing behavior is evidence about implementation, not unquestioned product intent.
 
-## Stable numbering and enforced frontier
+Group new paths by coherent user capability, such as durable character editing, party collaboration or external sign-in. A path may cover several screens and many scenarios. Preserve existing fine-grained IDs; discuss related paths together using a capability section in the existing review document instead of renumbering or starting over.
 
-Assign initial paths consecutive stable IDs (`PATH-001`, `PATH-002`, ...). After IDs have been recorded, use `node <skill>/scripts/qa.ts next-path-id <qa-root>` to allocate new discoveries after the highest assigned number. The parent owns allocation; workers must not choose numbers independently. Keep retired paths as explicitly excluded entries with rationale rather than deleting/renumbering them. Reordering an array or inserting a new discovery must not rename an existing path.
+For each capability, establish:
 
-Before **every** question round and on resume, run:
+- **Goal and actors:** what someone must accomplish, and who owns, views or changes the data.
+- **Behavior rules:** invariants and meaningful state transitions, including durable/receiving state when relevant.
+- **Risks and priority:** what could cause meaningful harm; which outcomes block release, and why.
+- **Boundaries:** identities, real versus simulated dependencies, permitted effects, evidence and cleanup already agreed during Init.
+- **Open decisions:** only unresolved intent, contradictory requirements or consequential tradeoffs.
+
+Store a concise `intent: { goal, rules, risks }` on new map entries. Keep cross-path grouping and actual decisions in the existing review document/`interview/decisions.md`. Reuse saved decisions and product documentation with provenance; flag assumptions as proposals rather than pretending the human confirmed them. Private prerequisites remain aliases/env key names; any new missing prerequisite gets Init's separate private handoff.
+
+## Interview only the uncertainty
+
+1. Persist the capability brief and unresolved choices. Regenerate the current review document (`qa.ts report <qa-root>` by default), then open/link it with a readable summary **before** asking anything about it.
+2. Focus the existing preview on `report.html#path-<ID>` and verify the heading is visible. For a cross-path brief, focus its established document section and link its path range. Use `#case-<ID>` only when discussing a particular example. Restore focus after regeneration; if automatic scrolling is unavailable, provide the excerpt/link and disclose that limit.
+3. Ask the smallest useful set of questions about product intent, with recommendations and consequences. Follow dependent branches only when an answer changes them. Already-settled rules require no additional question. A coherent capability with several cases gets one discussion, not one round per case.
+4. Update the brief from actual answers. Investigate discoverable details yourself. Stop grilling when the goal, rules, priority and boundaries are clear enough to distinguish correct from incorrect behavior; implementation details and test mechanics belong to the agent.
+
+Example discussion, **not preapproved behavior**:
+
+```text
+Party collaboration — PATH-004 through PATH-007
+Goal: the GM can run a party while each member manages their own character.
+Proposed rules: character ownership controls editing; the GM roster reflects saved changes;
+private fields remain private; leaving a party does not delete a character.
+Risks: unauthorized editing, lost saves, stale GM state during play.
+One unresolved decision: does membership grant editing of another member's character?
+Recommendation: ownership controls editing; explain any intended GM exception.
+```
+
+Do not ask the user to approve separate HP, reload, roster, cancellation and private-field checks after this rule is settled. Derive those checks and show the coverage summary.
+
+## Derive and confirm coverage as a batch
+
+Write concrete `scenarios/<QA-ID>.json` from the rules: the main journey, meaningful failures, relevant permissions, persistence/receiving views, cancellation and boundary cases. Use risk to choose combinations; avoid a separate test for every click or an unrequested matrix cross-product. Mark critical cases by the agreed release-blocking outcomes, rather than making every discovered screen critical. Existing criticality requires an actual rationale/decision to change, never a desire to make the report green.
+
+Each case still has identities, preconditions, ordered actions, observable expected outcomes, criticality, test boundary, evidence and cleanup. Keep a compact rule-to-case coverage table in the review document. Trace expectations to settled intent or a clearly presented proposal, never to a passing observed result. A new expected rule outside the settled intent returns only that decision to the user.
+
+Persist the generated cases and regenerate/present the review document before confirmation. Lead with capability goals/rules, proposed critical outcomes, coverage counts, boundaries, exclusions and remaining questions. Link the full cases as optional detail. Obtain **one explicit confirmation of the displayed scope**, for a capability batch or the whole mapped suite. The confirmation covers its exact generated specs; the human need not inspect or answer each case. Do not ask a second set of case approvals after that answer. Keep genuinely unresolved cases pending or explicitly exclude/defer them with rationale.
+
+Record the actual scope decision and displayed revision/IDs in `interview/decisions.md`, then:
 
 ```text
 node <skill>/scripts/qa.ts next-path <qa-root>
+node <skill>/scripts/qa.ts approve-batch <qa-root> <actual-scope-decision-reference> PATH-004 PATH-005 PATH-006 PATH-007
+node <skill>/scripts/qa.ts check <qa-root>
 ```
 
-`review.json` persists the numeric order, current path, completed/pending IDs and explicit jumps. Use its current path and listed scenarios for the document, focused card and question; include the path ID and completed/total progress in the context. A path remains current until its reviewed disposition and all included scenarios have current approvals. An exclusion is complete only with approved rationale. Changed earlier content returns to the unfinished frontier. Re-read the cursor after recording answers; do not mentally increment the ID or choose a later section of the document.
+`approve-batch` fingerprints each listed path and all its current cases under that one decision. It preflights the batch before writing approvals and preserves unchanged prior approval references. It records consent; it does not obtain it. Exact case/path content changes still invalidate the relevant hashes: present the semantic delta and revised batch for confirmation, without re-interviewing unchanged rules. Future undisclosed cases are not covered by an earlier confirmation.
 
-The approval helper rejects new out-of-order path/scenario approvals. For a user-approved batch, record each path and its scenario approvals together in cursor order using the same actual batch decision reference; then advance without asking again. A deliberate jump requires both a real user decision and a reason:
+## Stable IDs and resume
+
+Allocate initial paths consecutively (`PATH-001`, `PATH-002`, ...). For discoveries, use `qa.ts next-path-id <qa-root>` after the highest assigned number. The parent owns allocation. Retired paths remain explicitly excluded with rationale; keep existing IDs and result history.
+
+`next-path` persists numeric order and unfinished/completed IDs in `review.json`. Before recording a batch, read this cursor; include the consecutive unfinished frontier in that order. Related paths can share a discussion, and an entire displayed suite can share one confirmation. The cursor never requires a separate human question for every path or scenario. A deliberate jump requires an actual user decision and reason:
 
 ```text
 node <skill>/scripts/qa.ts focus-path <qa-root> PATH-031 <actual-user-decision-reference> <reason>
 ```
 
-The override stays on that unfinished path, then returns to the earlier frontier; it never marks bypassed paths complete. Never invent a reason on the user's behalf or skip because prerequisites are missing: preserve that pending path, continue independent non-review work, and ask for a deferral/order decision if needed.
+That override returns to the earlier frontier after completion. Missing prerequisites preserve pending work rather than silently skipping it. Existing individual `approve` commands remain available for narrowly revised specs and older workspaces.
 
-For an existing workspace adopting this guard, reconcile saved decisions first. Record only demonstrable prior user approvals against unchanged content, in order; preserve those answers without re-asking. Unrecorded/ambiguous decisions remain unfinished. If the previous agent jumped ahead, the cursor returns to the first real gap rather than accepting the latest displayed number as progress.
-
-## Interview tree: one path at a time
-
-This adapts the frontier-based grilling approach: every answer settles a decision and unlocks its dependent branches. Always present the current path and its proposed scenarios, even if no ambiguity is obvious. Do not execute the proposed scenario to discover what the expectation ought to be.
-
-1. Read the enforced frontier with `next-path`, then establish discoverable facts for that current path: route, controls, current data shape, available roles/tools and existing tests. Delegate read-only fact gathering when permitted. Ask the human for intent, not codebase facts.
-2. Persist the proposed path/scenarios and unresolved decisions **before asking**. Regenerate the current review document; by default use `node <skill>/scripts/qa.ts report <qa-root>` for the planning report. Drafts remain unapproved/not run. Use the user's existing review document if one is already established, keeping it synchronized with the scenario files rather than creating competing copies.
-3. Present that updated document: open the available preview and send a clickable absolute link plus a compact path card in chat. Include path/scenario IDs, the current content revision/fingerprint, preconditions, steps, expected outcomes, evidence, cleanup and criticality. Clearly label unresolved choices/proposals. If a panel is queued or cannot open, the chat summary supplies the readable material. Finish this presentation before invoking the question tool.
-4. Focus the scenario before asking: reuse the existing report preview, navigate to `report.html#case-<scenario-ID>` or scroll that card into view, and verify its heading is visible after layout settles. Cards expose their ID as a direct link and highlight the current fragment target. Include the same link with the question context. For a batch, focus the first card and link each covered ID; move the preview when the discussion moves to another card. After a regenerated document loads, restore that focus before the next question. If automatic scrolling is unavailable, provide the link plus excerpt and disclose the limitation.
-5. Ask the ready frontier of questions about **that displayed version and focused scenario**, with recommendations and a concrete reason for each. Use concise tool questions, normally one to three at a time. Hold questions whose answers depend on an unresolved decision for the next round. Never ask about an unwritten revision or launch questions while the document is still being generated.
-6. Challenge the branches that matter: ownership versus membership, private fields, persistence versus optimistic appearance, cancellation, invalid input, live propagation and irreversible/external effects. Choose relevant branches; the human should not answer a generic checklist for every screen.
-7. Reflect answers into the scenario and decision log, regenerate and present the updated document, restore the current scenario in view, then ask any dependent questions or final approval of that exact contract. Repeat the document-first sequence after material changes. Then move to the next path. An explicit approval of a displayed batch can settle that batch; do not require a redundant read receipt or reapprove unchanged content.
-
-Example path card, **not preapproved behavior**:
-
-```text
-PATH-004 · member edits a shared character
-Identities: member owns the character; GM views the party roster.
-Steps: change HP, wait for save, reload member sheet, inspect GM roster without reloading it.
-Expected: durable HP equals the saved value; GM sees the change through the supported live-update mechanism.
-Evidence: sanitized save/read correlation plus settled screenshots of both views.
-Cleanup: delete only this run's fixtures after all party checks finish.
-Ready decisions: Does party membership grant editing or only read access? Is live propagation release-critical?
-Recommendation: ownership controls editing; roster consistency is critical if the GM uses it during play.
-Dependent question, after authority is settled: Which fields must remain private in the member view?
-```
-
-## Record approvals and revisions
-
-Record actual user answers in `interview/decisions.md`, including which displayed path/scenario revision they address. Update the mapped path's disposition before approving it. If content changes after presentation, show the revised document before asking for approval; an answer about the earlier document does not approve undisclosed changes. The helper records the current content hash:
-
-```text
-node <skill>/scripts/qa.ts approve <qa-root> path:PATH-004 <actual-decision-reference>
-node <skill>/scripts/qa.ts approve <qa-root> QA-004 <actual-decision-reference>
-node <skill>/scripts/qa.ts check <qa-root>
-```
-
-Every included path needs scenarios; every scenario must map exactly once. Unknown identities, orphan scenarios, missing decisions and stale hashes block execution. Approvals are per content, not blanket permission for future edits. An excluded path needs an approved reason and no executable scenario IDs.
-
-When new facts invalidate a proposed expectation, return to the affected branch. Preserve earlier decisions and why they changed. Unchanged approvals remain valid. “Observed behavior” never silently overwrites “Expected behavior.” Mapping is complete when all discovered paths have a reviewed disposition and all included scenarios have current approval. Refresh the planning report before handoff.
+On migration/resume, reconcile demonstrable prior approvals against unchanged content first. Summarize remaining work by capability, reuse established intent and ask only unresolved decisions plus any needed displayed batch confirmation. Preserve incomplete execution as incomplete execution: a list of not-run or blocked cases is not a new interview backlog. Mapping is complete when included specs have current scope confirmation and exclusions have approved rationale. Missing accounts/host access may block execution without invalidating settled intent.

@@ -13,6 +13,7 @@ export type Config = {
 };
 export type PathEntry = {
   id: string; title: string; route: string; scenarioIds: string[];
+  intent?: { goal: string; rules: string[]; risks: string[] };
   disposition: 'pending' | 'included' | 'excluded'; reason: string; approval: Approval | null;
 };
 export type PathMap = { version: 1; paths: PathEntry[] };

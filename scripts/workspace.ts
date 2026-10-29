@@ -188,6 +188,45 @@ export function approve(root: string, subject: string, decisionRef: string): voi
   }
 }
 
+/** Record one displayed scope confirmation across its derived cases, preflighting before any approvals change. */
+export function approveBatch(root: string, decisionRef: string, pathIds: string[]): ReviewCursor {
+  assert.ok(decisionRef.trim(), 'A reference to the actual user scope confirmation is required.');
+  assert.ok(pathIds.length > 0 && new Set(pathIds).size === pathIds.length, 'List the exact displayed path IDs once each.');
+  const cursor = reviewPath(root);
+  const map = readJson<PathMap>(join(root, 'map.json'));
+  assert.ok(pathIds.every(id => map.paths.some(path => path.id === id)), 'Unknown mapped path.');
+  const pending = pathIds.filter(id => cursor.pendingPathIds.includes(id));
+  const frontier = [cursor.currentPathId, ...cursor.pendingPathIds.filter(id => id !== cursor.currentPathId)].filter((id): id is string => id !== null);
+  assert.deepEqual(pending, frontier.slice(0, pending.length), 'A batch must follow the review frontier without skipping unfinished paths.');
+  const scenarios: Scenario[] = [];
+  const mapped = new Set<string>();
+  const at = new Date().toISOString();
+  for (const id of pathIds) {
+    const path = map.paths.find(entry => entry.id === id)!;
+    assert.ok(['included', 'excluded'].includes(path.disposition), 'Choose included or excluded before scope confirmation.');
+    assert.ok(path.disposition === 'included' ? path.scenarioIds.length > 0 : path.reason.trim() && path.scenarioIds.length === 0, 'Included paths need scenarios; exclusions need a reason and no scenarios.');
+    for (const scenarioId of path.scenarioIds) {
+      assert.ok(!mapped.has(scenarioId), 'Duplicate scenario in scope confirmation.');
+      mapped.add(scenarioId);
+      const scenario = readJson<Scenario>(join(root, 'scenarios', `${safeId(scenarioId)}.json`));
+      assert.ok(scenario.id === scenarioId && scenario.pathId === id, 'Scenario must belong to the displayed path.');
+      assert.ok(scenario.steps.length > 0 && scenario.expected.length > 0 && scenario.title && scenario.boundary, 'Scenarios need steps, expectations and an observable test boundary.');
+      if (!hasApproval(scenario, scenario.approval)) {
+        scenario.approval = { decisionRef, at, contentHash: approvalHash(scenario) };
+        scenarios.push(scenario);
+      }
+    }
+    if (!hasApproval(path, path.approval)) {
+      path.approval = { decisionRef, at, contentHash: approvalHash(path) };
+    }
+  }
+  for (const scenario of scenarios) {
+    writeJson(join(root, 'scenarios', `${scenario.id}.json`), scenario);
+  }
+  writeJson(join(root, 'map.json'), map);
+  return reviewPath(root);
+}
+
 /** Validate approved mapping and scenarios, including additions, removals and identity allocations. */
 export function loadSuite(root: string): Suite {
   const config = readJson<Config>(join(root, 'config.json'));

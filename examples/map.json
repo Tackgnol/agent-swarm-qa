@@ -2,6 +2,11 @@
   "version": 1,
   "paths": [{
     "id": "PATH-001", "title": "Owned draft editing", "route": "/drafts/:id",
+    "intent": {
+      "goal": "An owner can edit a draft without losing saved work.",
+      "rules": ["Only the owner may edit the draft", "Saved edits survive reload"],
+      "risks": ["Unauthorized editing", "Silent loss of saved changes"]
+    },
     "scenarioIds": ["QA-001"], "disposition": "included", "reason": "Core save workflow", "approval": null
   }]
 }

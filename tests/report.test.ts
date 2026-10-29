@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { approve, readJson, readRun, startRun, writeJson } from '../scripts/workspace.ts';
-import { buildReport, renderHtml, writeReport, writePlanningReport } from '../scripts/report.ts';
+import { buildReport, renderHtml, renderMarkdown, writeReport, writePlanningReport } from '../scripts/report.ts';
 import type { Config, Report, Result, Scenario } from '../scripts/models.ts';
 import { fixture } from './helpers.ts';
 
@@ -26,6 +26,35 @@ test('partial runs retain missing cases and unknown build instead of reporting s
     const planning = readJson<Report>(join(f.root, 'planning', 'report.json'));
     assert.deepEqual(planning.run.openQuestions, ['Which identity paths should be covered?', 'Where should issues live?']);
     assert.ok(readFileSync(join(f.root, 'planning', 'report.md'), 'utf8').includes('## Evidence'));
+  } finally { rmSync(f.project, { recursive: true, force: true }); }
+});
+
+test('capability briefs summarize large execution gaps while retaining every detailed case', () => {
+  const f = fixture();
+  try {
+    const { suite, run } = readRun(f.root, 'first');
+    suite.map.paths[0].intent = { goal: 'Keep <owner> edits durable', rules: ['Saved edits survive reload'], risks: ['Silent loss of work'] };
+    for (let number = 2; number <= 140; number += 1) {
+      const id = `QA-${String(number).padStart(3, '0')}`;
+      suite.map.paths[0].scenarioIds.push(id);
+      suite.scenarios.push({ ...suite.scenarios[0], id });
+    }
+    const report = buildReport(suite, run, []);
+    assert.equal(report.recommendation, 'readiness-unproven');
+    assert.equal(report.counts['not-run'], 140);
+    const gapReason = report.reasons.find(reason => reason.startsWith('Critical coverage'))!;
+    assert.ok(gapReason.includes('140 scenarios across 1 path'));
+    assert.ok(gapReason.length < 250);
+    const markup = renderHtml(report, f.run);
+    assert.ok(markup.includes('id="path-PATH-001"'));
+    assert.ok(markup.includes('Keep &lt;owner&gt; edits durable'));
+    assert.ok(markup.includes('Saved edits survive reload'));
+    assert.ok(markup.includes('0/140 cases passed'));
+    assert.ok(renderMarkdown(report).includes('Silent loss of work'));
+    for (const scenario of suite.scenarios) {
+      assert.ok(markup.includes(`href="#case-${scenario.id}"`));
+      assert.ok(markup.includes(`id="case-${scenario.id}"`));
+    }
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });
 

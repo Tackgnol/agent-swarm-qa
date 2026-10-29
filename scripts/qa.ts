@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { approve, focusReviewPath, initialize, loadSuite, lockSuite, nextPathId, reviewPath, startRun } from './workspace.ts';
+import { approve, approveBatch, focusReviewPath, initialize, loadSuite, lockSuite, nextPathId, reviewPath, startRun } from './workspace.ts';
 import { writePlanningReport, writeReport } from './report.ts';
 import type { Run } from './models.ts';
 import { missingCredentialKeys, preparePrivateEnv } from './with-qa-env.ts';
@@ -13,7 +13,7 @@ import { exportGherkin } from './to-gherkin.ts';
 export function main(args: string[]): string {
   const [command, root, first, second, third] = args;
   if (!root) {
-    throw new Error('Usage: qa.ts init <project-root> <slug> | approve <qa-root> <setup|path:ID|scenario-ID> <decision-ref> | run <qa-root> <environment> <run-id> <first-run|retest> | lock <qa-root> <run-id> <decision-ref> | report <qa-root> [run-id] | check <qa-root>');
+    throw new Error('Usage: qa.ts init <project-root> <slug> | approve <qa-root> <setup|path:ID|scenario-ID> <decision-ref> | approve-batch <qa-root> <decision-ref> <path-ID...> | run <qa-root> <environment> <run-id> <first-run|retest> | lock <qa-root> <run-id> <decision-ref> | report <qa-root> [run-id] | check <qa-root>');
   }
   switch (command) {
     case 'init': {
@@ -26,6 +26,10 @@ export function main(args: string[]): string {
       if (!first || !second) { throw new Error('Subject and actual user decision reference are required.'); }
       approve(root, first, second);
       return 'Recorded user approval for the current content fingerprint.';
+    }
+    case 'approve-batch': {
+      if (!first || !second) { throw new Error('An actual scope confirmation reference and displayed path IDs are required.'); }
+      return JSON.stringify(approveBatch(root, first, args.slice(3)), null, 2);
     }
     case 'check': return `Approved suite: ${loadSuite(root).hash}`;
     case 'to-gherkin': {
