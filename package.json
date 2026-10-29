@@ -2,6 +2,7 @@
   "name": "agent-swarm-qa",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "A guided, repeatable QA skill with private credentials and portable reports.",
   "engines": {

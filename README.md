@@ -14,7 +14,7 @@ See [SKILL.md](SKILL.md) for the agent workflow. The interview-tree approach is 
 
 ## Use
 
-Install this folder as `agent-swarm-qa` in your agent's skills directory, or point the agent at `SKILL.md` in this repository. The installed skill must retain `scripts/`, `references/`, `examples/` and `agents/`. Runtime helpers need Node 22.18 or newer and no npm install. Development uses `npm ci`, `npm test` and `npm run typecheck`.
+Install this folder as `agent-swarm-qa` in your agent's skills directory, or point the agent at `SKILL.md` in this repository. The installed skill must retain `scripts/`, `references/`, `examples/`, `agents/` and `LICENSE`. Runtime helpers need Node 22.18 or newer and no npm install. Development uses `npm ci`, `npm test` and `npm run typecheck`.
 
 Example request:
 
@@ -60,3 +60,7 @@ The output has no executable step definitions or automation claims. Runtime expo
 ## Offline report preview
 
 Run `npm run demo` to generate a visual report under this repository's ignored `.scratch/` folder. Every observation, approval and count is labeled synthetic; it sends no network requests and tests no real product. Each invocation creates a new run without overwriting history.
+
+## License
+
+[MIT](LICENSE) — copyright 2026 Adam Kościelniak.
