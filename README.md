@@ -12,9 +12,67 @@ Mapping also builds a swarm execution plan. Available subagents receive bounded 
 
 See [SKILL.md](SKILL.md) for the agent workflow. The interview-tree approach is adapted from the local `grilling`/`grill-me` skills; the visual review idea is inspired by `improve-codebase-architecture`. QA-specific reporting is implemented here without CDN dependencies.
 
-## Use
+## Install
 
-Install this folder as `agent-swarm-qa` in your agent's skills directory, or point the agent at `SKILL.md` in this repository. The installed skill must retain `scripts/`, `references/`, `examples/`, `agents/` and `LICENSE`. Runtime helpers need Node 22.18 or newer and no npm install. Development uses `npm ci`, `npm test` and `npm run typecheck`.
+You need **Node.js 22.18 or newer** and an agent that can read local skill files and run commands. Live web QA also needs browser-control tools; parallel execution needs subagent support. Without subagents, the skill can run serially and report that limitation. Git is required for the manual installation below. No `npm install` is needed to use the skill's helpers; browser tools and issue-tracker connections are configured separately in your agent.
+
+### Codex: ask the built-in installer
+
+Paste this into a Codex chat:
+
+```text
+Use $skill-installer to install the skill from Tackgnol/agent-swarm-qa.
+Use ref codex/agent-swarm-qa, path . (the repository root), and name agent-swarm-qa.
+```
+
+The explicit ref matches this repository's current default branch. If the skill is already installed, update that copy rather than installing a second one.
+
+### Codex: manual installation with Git
+
+Choose this method if you want to update with `git pull`. The commands install the whole repository as one personal skill under `~/.agents/skills/agent-swarm-qa`, a user skill location documented in the [official OpenAI skill guide](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills).
+
+**Windows / PowerShell:**
+
+```powershell
+$skillRoot = Join-Path $env:USERPROFILE '.agents\skills'
+New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
+git clone https://github.com/Tackgnol/agent-swarm-qa.git (Join-Path $skillRoot 'agent-swarm-qa')
+```
+
+**macOS / Linux:**
+
+```bash
+mkdir -p "$HOME/.agents/skills"
+git clone https://github.com/Tackgnol/agent-swarm-qa.git "$HOME/.agents/skills/agent-swarm-qa"
+```
+
+Choose one installation method. If the destination already exists, keep it and follow the update guidance below. If you already have a working copy in another skill directory, update that copy rather than adding a duplicate.
+
+Codex detects newly installed skills automatically. If it does not appear, restart Codex, then invoke `$agent-swarm-qa`. See the [official installation guidance](https://learn.chatgpt.com/docs/build-skills#install-curated-skills-for-local-use).
+
+### Other skill-compatible agents
+
+Place the repository in that agent's documented skills directory as `agent-swarm-qa`, or explicitly point it at this repository's `SKILL.md`. Keep `SKILL.md`, `scripts/`, `references/`, `examples/`, `agents/` and `LICENSE` together. Tool availability and automatic discovery depend on the agent; installing the files alone does not add browser, subagent or tracker tools.
+
+### Update an existing installation
+
+For a Git clone installed with the commands above:
+
+```powershell
+# Windows / PowerShell
+git -C (Join-Path $env:USERPROFILE '.agents\skills\agent-swarm-qa') pull --ff-only
+```
+
+```bash
+# macOS / Linux
+git -C "$HOME/.agents/skills/agent-swarm-qa" pull --ff-only
+```
+
+Use your actual install path if it differs. If Git reports local changes or diverged history, preserve them and resolve the difference before updating; these commands do not force an overwrite. Installer/download copies may not contain `.git`: back up the existing copy, obtain the updated repository, then replace the skill files in the same location. Product QA workspaces and `.env.qa` files remain in the product's `.scratch/QA/` directory and should be preserved.
+
+For an ongoing QA chat, ask the agent to reload `SKILL.md` and the relevant references while preserving its current workspace, approvals and results. Restart Codex if the updated skill is not discovered.
+
+## Use
 
 Example request:
 
@@ -60,6 +118,8 @@ The output has no executable step definitions or automation claims. Runtime expo
 ## Offline report preview
 
 Run `npm run demo` to generate a visual report under this repository's ignored `.scratch/` folder. Every observation, approval and count is labeled synthetic; it sends no network requests and tests no real product. Each invocation creates a new run without overwriting history.
+
+For local development, run `npm ci` in the skill repository first. Contributor checks are `npm test` and `npm run typecheck`; normal skill use and the offline preview do not need these development dependencies.
 
 ## License
 
