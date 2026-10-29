@@ -50,6 +50,48 @@ Choose one installation method. If the destination already exists, keep it and f
 
 Codex detects newly installed skills automatically. If it does not appear, restart Codex, then invoke `$agent-swarm-qa`. See the [official installation guidance](https://learn.chatgpt.com/docs/build-skills#install-curated-skills-for-local-use).
 
+### Claude Code
+
+Clone the repository into your personal skills directory, `~/.claude/skills/agent-swarm-qa` (all projects), or into a product's `.claude/skills/agent-swarm-qa` (that project only). See the [official Claude Code skills guide](https://code.claude.com/docs/en/skills).
+
+**Windows / PowerShell:**
+
+```powershell
+$skillRoot = Join-Path $env:USERPROFILE '.claude\skills'
+New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
+git clone https://github.com/Tackgnol/agent-swarm-qa.git (Join-Path $skillRoot 'agent-swarm-qa')
+```
+
+**macOS / Linux:**
+
+```bash
+mkdir -p "$HOME/.claude/skills"
+git clone https://github.com/Tackgnol/agent-swarm-qa.git "$HOME/.claude/skills/agent-swarm-qa"
+```
+
+Invoke it with `/agent-swarm-qa`, or describe a QA task and Claude Code loads it from the description. If `~/.claude/skills` did not exist when your session started, restart Claude Code so the new directory is picked up. Claude Code's subagents and browser tools (for example the Playwright or Claude in Chrome integrations) cover the swarm and live-browser parts.
+
+### GitHub Copilot
+
+Copilot agent skills work in Copilot CLI, agent mode in VS Code and the Copilot cloud agent. Personal skills go in `~/.copilot/skills/agent-swarm-qa`; project skills go in the product repository's `.github/skills/agent-swarm-qa`. Copilot also reads `~/.agents/skills` and `~/.claude/skills`, so an existing Codex or Claude Code clone already works; do not clone a second copy. See the [GitHub Copilot skills guide](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-skills).
+
+**Windows / PowerShell:**
+
+```powershell
+$skillRoot = Join-Path $env:USERPROFILE '.copilot\skills'
+New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
+git clone https://github.com/Tackgnol/agent-swarm-qa.git (Join-Path $skillRoot 'agent-swarm-qa')
+```
+
+**macOS / Linux:**
+
+```bash
+mkdir -p "$HOME/.copilot/skills"
+git clone https://github.com/Tackgnol/agent-swarm-qa.git "$HOME/.copilot/skills/agent-swarm-qa"
+```
+
+Restart Copilot CLI or reload VS Code, then ask Copilot to use the `agent-swarm-qa` skill. The cloud agent only sees project skills committed under `.github/skills/`, and it cannot run the local `.env.qa` credential flow, so prefer Copilot CLI or VS Code for authenticated QA.
+
 ### Other skill-compatible agents
 
 Place the repository in that agent's documented skills directory as `agent-swarm-qa`, or explicitly point it at this repository's `SKILL.md`. Keep `SKILL.md`, `scripts/`, `references/`, `examples/`, `agents/` and `LICENSE` together. Tool availability and automatic discovery depend on the agent; installing the files alone does not add browser, subagent or tracker tools.
