@@ -8,6 +8,8 @@ A skill for turning exploratory web-app QA into a reviewed, repeatable suite.
 4. **Lock in:** review a visual report and record the agreed scenario fingerprint. Known failures remain failures.
 5. **Retest:** run the same contract against a new observed build and always produce HTML, Markdown and JSON reports.
 
+Mapping also builds a swarm execution plan. Available subagents receive bounded assignments with approved cases, account/session and fixture allocations, dependencies and separate evidence outputs. Independent work runs concurrently; shared browsers, accounts and rooms are scheduled to avoid interference. The parent coordinates, reconciles evidence and owns the final report. See [the swarm workflow](references/swarm.md).
+
 See [SKILL.md](SKILL.md) for the agent workflow. The interview-tree approach is adapted from the local `grilling`/`grill-me` skills; the visual review idea is inspired by `improve-codebase-architecture`. QA-specific reporting is implemented here without CDN dependencies.
 
 ## Use
