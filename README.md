@@ -35,10 +35,10 @@ Paste this into a Codex chat:
 
 ```text
 Use $skill-installer to install the skill from Tackgnol/agent-swarm-qa.
-Use ref codex/agent-swarm-qa, path . (the repository root), and name agent-swarm-qa.
+Use ref master, path . (the repository root), and name agent-swarm-qa.
 ```
 
-The explicit ref matches this repository's current default branch. If the skill is already installed, update that copy rather than installing a second one.
+The explicit ref matches this repository's default branch. If the skill is already installed, update that copy rather than installing a second one.
 
 ### Codex: manual installation with Git
 
