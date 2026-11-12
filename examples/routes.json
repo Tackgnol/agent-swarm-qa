@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "routes": [
+    { "id": "draft-editor", "pattern": "/drafts/:id", "title": "Draft editor", "sources": ["source", "crawl"], "identities": ["owner"], "status": "inventoried", "reason": "" },
+    { "id": "sign-up", "pattern": "/sign-up", "title": "Sign up", "sources": ["source", "crawl"], "identities": ["guest"], "status": "inventoried", "reason": "" },
+    { "id": "admin-console", "pattern": "/admin", "title": "Admin console", "sources": ["source"], "identities": [], "status": "unreachable", "reason": "Redirects every allocated identity to /; no admin identity is in the setup." }
+  ]
+}

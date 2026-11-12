@@ -12,6 +12,8 @@ const root = join(project, '.scratch', 'QA', 'demo');
 if (!existsSync(root)) {
   initialize(project, 'demo');
   copyFileSync(join(repo, 'examples', 'config.json'), join(root, 'config.json'));
+  copyFileSync(join(repo, 'examples', 'routes.json'), join(root, 'routes.json'));
+  copyFileSync(join(repo, 'examples', 'interactions.json'), join(root, 'interactions', 'draft-editor.json'));
   const template = readJson<Scenario>(join(repo, 'examples', 'scenario.json'));
   const definitions = [
     { id: 'QA-001', title: 'Saved draft survives reload', route: '/drafts/:id', critical: true },

@@ -24,7 +24,7 @@ test('export parses as Gherkin and preserves approved Given/When/Then wording an
     assert.deepEqual(feature.tags.map(tag => tag.name), ['@qa', '@draft', '@PATH-001']);
     assert.equal(feature.children.length, 1);
     const scenario = feature.children[0].scenario!;
-    assert.deepEqual(scenario.tags.map(tag => tag.name), ['@QA-001', '@critical']);
+    assert.deepEqual(scenario.tags.map(tag => tag.name), ['@QA-001', '@critical', '@happy']);
     assert.deepEqual(scenario.steps.map(step => step.text), [...original.preconditions, ...original.steps, ...original.expected]);
     assert.deepEqual(scenario.steps.map(step => step.keyword.trim()), ['Given', 'When', 'And', 'And', 'Then', 'And']);
     const manifest = readJson<{ source: string; files: { scenarios: { id: string; source: string; contentHash: string }[] }[] }>(join(directory, 'manifest.json'));

@@ -1,44 +1,30 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve, relative, isAbsolute } from 'node:path';
-import type { Approval, Config, PathMap, Result, ReviewCursor, Run, Scenario, Suite } from './models.ts';
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { fingerprint, readJson, safeId, writeJson } from './store.ts';
+import { interactionsHash, loadInteractions, resolveOperation } from './interactions.ts';
+import { seedChart } from './wayfinding.ts';
+import type { Approval, Config, Lock, PathMap, Result, ReviewCursor, Run, Scenario, Suite, Tier } from './models.ts';
 
-export function readJson<T>(path: string): T {
-  return JSON.parse(readFileSync(path, 'utf8')) as T;
-}
+export { fingerprint, inside, readJson, safeId, writeJson } from './store.ts';
 
-export function writeJson(path: string, value: unknown): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-}
-
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(canonical);
-  }
-  if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)]));
-  }
-  return value;
-}
-
-export function fingerprint(value: unknown): string {
-  return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
-}
-
+/** Fingerprint what the user approves. Operating knowledge (operations, route links) is agent-owned and stays outside it. */
 export function approvalHash(value: Config | Scenario | PathMap['paths'][number]): string {
-  const { approval, setupApproval, ...content } = value as unknown as Record<string, unknown>;
+  const { approval, setupApproval, operations, routes, ...content } = value as unknown as Record<string, unknown>;
   return fingerprint(content);
+}
+
+const tiers: Tier[] = ['happy', 'error', 'adversarial'];
+
+function checkScenario(scenario: Scenario): void {
+  assert.ok(scenario.steps.length > 0 && scenario.expected.length > 0 && scenario.title && scenario.boundary, 'Scenarios need steps, expectations and an observable test boundary.');
+  assert.ok(scenario.tier === undefined || tiers.includes(scenario.tier), `${scenario.id} has an unknown tier: use happy, error or adversarial.`);
+  assert.ok(scenario.tier !== 'adversarial' || scenario.rule?.trim(), `${scenario.id} is adversarial: name the rule it tries to break.`);
+  assert.ok(scenario.operations === undefined || (Array.isArray(scenario.operations) && scenario.operations.every(item => typeof item === 'string')), `${scenario.id}: operations is a list of route/section/element/action addresses.`);
 }
 
 export function suiteFingerprint(config: Config, map: PathMap, scenarios: Scenario[]): string {
   return fingerprint({ config: approvalHash(config), paths: map.paths.map(approvalHash), scenarios: scenarios.map(approvalHash) });
-}
-
-export function safeId(value: string): string {
-  assert.match(value, /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/, 'Use a short alphanumeric ID with hyphens/underscores.');
-  return value;
 }
 
 /** Collect private prerequisite names without loading their values. */
@@ -52,19 +38,12 @@ export function requiredEnvKeys(config: Config): string[] {
   return keys;
 }
 
-export function inside(root: string, path: string): string {
-  const target = resolve(root, path);
-  const rel = relative(resolve(root), target);
-  assert.ok(rel !== '..' && !rel.startsWith(`..\\`) && !rel.startsWith('../') && !isAbsolute(rel), 'Path must stay inside its workspace.');
-  return target;
-}
-
 /** Create only empty secret slots; existing workspaces and credentials are never overwritten. */
 export function initialize(projectRoot: string, name: string): string {
   assert.ok(existsSync(projectRoot) && statSync(projectRoot).isDirectory(), 'Choose an existing product directory.');
   const root = join(resolve(projectRoot), '.scratch', 'QA', safeId(name));
   assert.ok(!existsSync(root), 'QA workspace already exists; resume it instead.');
-  for (const path of ['scenarios', 'runners', 'runs', 'issues', 'interview']) {
+  for (const path of ['scenarios', 'runners', 'runs', 'issues', 'interview', 'interactions', 'barriers']) {
     mkdirSync(join(root, path), { recursive: true });
   }
   writeFileSync(join(root, '.gitignore'), '*\n!.gitignore\n', 'utf8');
@@ -77,12 +56,14 @@ export function initialize(projectRoot: string, name: string): string {
   };
   writeJson(join(root, 'config.json'), config);
   writeJson(join(root, 'map.json'), { version: 1, paths: [] });
-  writeJson(join(root, 'checkpoint.json'), { phase: 'init', pendingQuestions: [], nextAction: 'Complete the non-sensitive setup interview.' });
+  writeJson(join(root, 'routes.json'), { version: 1, routes: [] });
+  seedChart(root);
+  writeJson(join(root, 'checkpoint.json'), { phase: 'init', pendingQuestions: [], nextAction: 'Run qa.ts map <qa-root> and take the first frontier charter.' });
   writeFileSync(join(root, 'interview', 'decisions.md'), '# QA decisions\n\nRecord the actual user answers and decision references here. Never store credentials.\n', 'utf8');
   return root;
 }
 
-function hasApproval(value: Config | Scenario | PathMap['paths'][number], approval: Approval | null): boolean {
+export function hasApproval(value: Config | Scenario | PathMap['paths'][number], approval: Approval | null): boolean {
   return Boolean(approval?.decisionRef?.trim() && !Number.isNaN(Date.parse(approval.at)) && approval.contentHash === approvalHash(value));
 }
 
@@ -210,7 +191,7 @@ export function approveBatch(root: string, decisionRef: string, pathIds: string[
       mapped.add(scenarioId);
       const scenario = readJson<Scenario>(join(root, 'scenarios', `${safeId(scenarioId)}.json`));
       assert.ok(scenario.id === scenarioId && scenario.pathId === id, 'Scenario must belong to the displayed path.');
-      assert.ok(scenario.steps.length > 0 && scenario.expected.length > 0 && scenario.title && scenario.boundary, 'Scenarios need steps, expectations and an observable test boundary.');
+      checkScenario(scenario);
       if (!hasApproval(scenario, scenario.approval)) {
         scenario.approval = { decisionRef, at, contentHash: approvalHash(scenario) };
         scenarios.push(scenario);
@@ -265,7 +246,7 @@ export function loadSuite(root: string): Suite {
   for (const scenario of scenarios) {
     safeId(scenario.id);
     assert.ok(!byId.has(scenario.id), 'Duplicate scenario ID.');
-    assert.ok(scenario.steps.length > 0 && scenario.expected.length > 0 && scenario.title && scenario.boundary, 'Scenarios need steps, expectations and an observable test boundary.');
+    checkScenario(scenario);
     assert.ok(hasApproval(scenario, scenario.approval), `${scenario.id} needs current user approval.`);
     assert.ok(scenario.identities.every(alias => aliases.has(alias)), 'Scenario references an unknown identity.');
     byId.set(scenario.id, scenario);
@@ -296,10 +277,20 @@ export function startRun(root: string, environment: string, id: string, phase: R
   assert.ok(['first-run', 'retest'].includes(phase), 'Use first-run or retest.');
   const suite = loadSuite(root);
   assert.ok(suite.config.environments.some(env => env.name === environment), 'Unknown environment.');
+  const lockFile = join(root, 'locked.json');
+  const lock = existsSync(lockFile) ? readJson<Lock>(lockFile) : undefined;
   if (phase === 'retest') {
-    const lock = readJson<{ suiteHash: string }>(join(root, 'locked.json'));
+    assert.ok(lock, 'Nothing is locked yet: a retest replays a locked suite.');
     assert.equal(lock.suiteHash, suite.hash, 'Suite changed: review affected decisions and repeat scrutiny before relocking.');
   }
+  assert.ok(lock || suite.scenarios.every(scenario => (scenario.tier ?? 'happy') === 'happy'), 'Lock the happy-path baseline before running error or adversarial scenarios.');
+  const interactions = loadInteractions(root);
+  for (const scenario of suite.scenarios) {
+    for (const operation of scenario.operations ?? []) {
+      resolveOperation(interactions, operation);
+    }
+  }
+  const operatingHash = interactionsHash(root);
   const path = join(root, 'runs', id);
   assert.ok(!existsSync(path), 'Run already exists; resume it instead.');
   for (const dir of ['screenshots', 'lanes', 'private']) {
@@ -308,7 +299,10 @@ export function startRun(root: string, environment: string, id: string, phase: R
   writeJson(join(path, 'suite.json'), suite);
   const run: Run = {
     version: 1, id, phase, createdAt: new Date().toISOString(), environment,
-    observedBuild: 'unverified', suiteHash: suite.hash, openQuestions: [], fixtures: [], findings: [], limits: [], automated: [], fuzzing: [],
+    observedBuild: 'unverified', suiteHash: suite.hash, openQuestions: [], fixtures: [], findings: [],
+    limits: phase === 'retest' && lock?.interactionsHash && lock.interactionsHash !== operatingHash
+      ? ['The interaction map changed since the lock: an operation that no longer resolves is map drift to repair, not yet a product failure.'] : [],
+    interactionsHash: operatingHash, automated: [], fuzzing: [],
   };
   writeJson(join(path, 'run.json'), run);
   writeJson(join(path, 'results.json'), []);
@@ -351,6 +345,11 @@ export function lockSuite(root: string, id: string, decisionRef: string): void {
   assert.equal(current.hash, suite.hash, 'Run the revised suite under scrutiny before locking.');
   assert.equal(run.openQuestions.length, 0, 'Resolve the open specification questions before locking.');
   assert.ok(suite.scenarios.every(scenario => results.some(result => result.scenarioId === scenario.id)), 'Every scenario needs an explicit result/disposition.');
-  writeJson(join(root, 'locked.json'), { version: 1, suiteHash: suite.hash, sourceRun: id, decisionRef, at: new Date().toISOString() });
+  const counts: Record<Tier, number> = { happy: 0, error: 0, adversarial: 0 };
+  for (const scenario of suite.scenarios) {
+    counts[scenario.tier ?? 'happy'] += 1;
+  }
+  const lock: Lock = { version: 1, suiteHash: suite.hash, sourceRun: id, decisionRef, at: new Date().toISOString(), tiers: counts, interactionsHash: interactionsHash(root) };
+  writeJson(join(root, 'locked.json'), lock);
   writeJson(join(root, 'checkpoint.json'), { phase: 'locked', runId: id, nextAction: 'Generate the standard report; future runs use the locked scenarios.' });
 }

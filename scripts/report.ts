@@ -122,9 +122,9 @@ export function renderHtml(report: Report, directory: string): string {
       <details><summary>Derived cases (${cases.length})</summary><ul>${cases.map(entry => `<li><a href="#case-${encodeURIComponent(entry.scenario.id)}">${html(entry.scenario.id)} · ${html(entry.scenario.title)}</a> · ${entry.status}</li>`).join('')}</ul></details></article>`;
   }).join('');
   const cards = report.cases.map(({ scenario, status, attempts }) => `<article class="card" id="case-${html(scenario.id)}">
-    <span class="badge ${status}">${status}</span> <span class="meta"><a href="#case-${encodeURIComponent(scenario.id)}" aria-label="Link to ${html(scenario.id)}">${html(scenario.id)}</a> · ${scenario.critical ? 'Critical' : 'Optional'} · ${html(scenario.pathId)}</span>
+    <span class="badge ${status}">${status}</span> <span class="meta"><a href="#case-${encodeURIComponent(scenario.id)}" aria-label="Link to ${html(scenario.id)}">${html(scenario.id)}</a> · ${scenario.critical ? 'Critical' : 'Optional'} · ${html(scenario.tier ?? 'happy')} tier · ${html(scenario.pathId)}</span>
     <h2>${html(scenario.title)}</h2><p class="meta">${html(scenario.boundary)} · identities: ${html(scenario.identities.join(', '))}</p>
-    <div class="columns"><section><h3>Scenario</h3>${list(scenario.preconditions)}<ol>${scenario.steps.map(step => `<li>${html(step)}</li>`).join('')}</ol></section><section><h3>Expected</h3>${list(scenario.expected)}<h3>Required evidence</h3>${list(scenario.evidence ?? [])}</section></div>
+    <div class="columns"><section><h3>Scenario</h3>${list(scenario.preconditions)}<ol>${scenario.steps.map(step => `<li>${html(step)}</li>`).join('')}</ol></section><section>${scenario.rule ? `<h3>Rule under test</h3><p>${html(scenario.rule)}</p>` : ''}<h3>Expected</h3>${list(scenario.expected)}<h3>Required evidence</h3>${list(scenario.evidence ?? [])}</section></div>
     ${attempts.length === 0 ? '<p class="notice">Not run. No passing result is implied.</p>' : attempts.map(attempt => `<section><h3>Attempt ${attempt.attempt}: ${html(attempt.status)}</h3><p>${html(attempt.actual)}</p><p class="meta">${html(attempt.at)} · ${html(attempt.browser)} · ${html(attempt.viewport)} · ${html(attempt.locale)} · ${html(attempt.boundary)}</p>${list(attempt.evidence)}${attempt.resolution ? `<p class="notice">${html(attempt.resolution.kind)}: ${html(attempt.resolution.reason)}</p>` : ''}${attempt.screenshots.map(item => screenshot(directory, item, budget)).join('')}</section>`).join('')}
     <details><summary>Approval and cleanup contract</summary><p>${html(scenario.approval?.decisionRef ?? 'Not approved')}</p>${list(scenario.cleanup)}</details>
   </article>`).join('');
@@ -157,7 +157,8 @@ export function renderMarkdown(report: Report): string {
     }
   }
   for (const entry of report.cases) {
-    lines.push(`### ${entry.scenario.id}: ${entry.scenario.title}`, '', `Status: ${entry.status}; critical: ${entry.scenario.critical}`, '',
+    lines.push(`### ${entry.scenario.id}: ${entry.scenario.title}`, '', `Status: ${entry.status}; critical: ${entry.scenario.critical}; tier: ${entry.scenario.tier ?? 'happy'}`, '',
+      ...(entry.scenario.rule ? [`Rule under test: ${entry.scenario.rule}`, ''] : []),
       'Expected:', ...entry.scenario.expected.map(item => `- ${item}`), '',
       ...entry.attempts.flatMap(item => [`Attempt ${item.attempt}: ${item.status} — ${item.actual}`, `Boundary: ${item.boundary}; ${item.browser}; ${item.viewport}; ${item.locale}`, ...item.evidence.map(value => `- ${value}`), ...item.screenshots.map(image => `- Screenshot: ${image.path} (${image.inspected ? 'inspected' : 'uninspected'})`), '']));
   }

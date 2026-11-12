@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "destination": "A locked happy-path baseline for example-app on canary, then error and adversarial tiers for draft editing.",
+  "notes": ["Drive the app with the Playwright MCP browser tools; the product has no Playwright install of its own."],
+  "fog": [
+    "Error paths for each capability (after the baseline is locked).",
+    "Adversarial scenarios for each capability (after the baseline is locked)."
+  ],
+  "outOfScope": ["Billing: the user ruled payments out of this effort."],
+  "charters": [
+    { "id": "setup", "name": "Set up the QA effort", "kind": "setup", "mode": "HITL", "mission": "Name the destination with the user and confirm environments, identities, issue storage, coverage and the mutation policy.", "blockedBy": [], "status": "closed", "claimedBy": null, "gist": "Canary, guest plus owner and member, local issue drafts, owned fixtures only." },
+    { "id": "find-routes", "name": "Find every route", "kind": "routes", "mode": "AFK", "mission": "List every route of the app from its source and a crawl per identity, then charter one inventory per route.", "blockedBy": ["setup"], "status": "closed", "claimedBy": null, "gist": "3 routes: 2 to inventory, the admin console unreachable without an admin identity." },
+    { "id": "inventory-draft-editor", "name": "Inventory the draft editor", "kind": "inventory", "mode": "AFK", "mission": "Find and operate every interactive element on /drafts/:id as owner.", "subjects": ["draft-editor"], "blockedBy": ["find-routes"], "status": "open", "claimedBy": "lane-1", "gist": "" },
+    { "id": "inventory-sign-up", "name": "Inventory sign up", "kind": "inventory", "mode": "AFK", "mission": "Find and operate every interactive element on /sign-up as guest.", "subjects": ["sign-up"], "blockedBy": ["find-routes"], "status": "open", "claimedBy": null, "gist": "" },
+    { "id": "group-capabilities", "name": "Group routes into capabilities", "kind": "task", "mode": "AFK", "mission": "Write one map.json path per capability, linked to its routes; then charter an intent and a happy-scenarios charter for each.", "blockedBy": ["inventory-draft-editor", "inventory-sign-up"], "status": "open", "claimedBy": null, "gist": "" }
+  ]
+}

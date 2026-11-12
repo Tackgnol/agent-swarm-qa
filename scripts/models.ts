@@ -11,8 +11,11 @@ export type Config = {
   mutationPolicy: 'undecided' | 'read-only' | 'owned-fixtures';
   setupApproval: Approval | null;
 };
+export type Tier = 'happy' | 'error' | 'adversarial';
 export type PathEntry = {
   id: string; title: string; route: string; scenarioIds: string[];
+  /** Route IDs from routes.json this capability spans. Agent-owned; not part of the approved content. */
+  routes?: string[];
   intent?: { goal: string; rules: string[]; risks: string[] };
   disposition: 'pending' | 'included' | 'excluded'; reason: string; approval: Approval | null;
 };
@@ -26,6 +29,12 @@ export type Scenario = {
   id: string; pathId: string; title: string; identities: string[]; critical: boolean;
   preconditions: string[]; steps: string[]; expected: string[];
   boundary: string; evidence: string[]; cleanup: string[]; approval: Approval | null;
+  /** Layer this scenario belongs to; absent means the happy-path baseline. */
+  tier?: Tier;
+  /** The capability rule this scenario exercises; required for the adversarial tier. */
+  rule?: string;
+  /** Ordered interaction addresses (route/section/element/action) the steps drive. Agent-owned; not part of the approved content. */
+  operations?: string[];
 };
 export type Suite = { config: Config; map: PathMap; scenarios: Scenario[]; hash: string };
 export type Run = {
@@ -35,8 +44,54 @@ export type Run = {
   fixtures: { id: string; owner: string; cleanup: 'pending' | 'done' | 'handed-off'; note: string }[];
   findings: { id: string; title: string; kind: string; impact: string; scenarioIds: string[]; issueUrl?: string }[];
   limits: string[];
+  /** Fingerprint of the interaction map when the run started. */
+  interactionsHash?: string;
   automated: { name: string; boundary: string; passed: number; failed: number; skipped: number; log: string }[];
   fuzzing: { name: string; executed: number; rawErrors: number; rawWarnings: number; confirmedDefects: number; log: string }[];
+};
+export type Lock = {
+  version: 1; suiteHash: string; sourceRun: string; decisionRef: string; at: string;
+  tiers?: Record<Tier, number>; interactionsHash?: string;
+};
+export type Route = {
+  id: string; pattern: string; title: string;
+  /** Where the route was found: source, crawl, sitemap, user. */
+  sources: string[];
+  /** Identity aliases that can reach it. */
+  identities: string[];
+  status: 'pending' | 'inventoried' | 'unreachable' | 'excluded'; reason: string;
+};
+export type RouteInventory = { version: 1; routes: Route[] };
+export type Interaction = {
+  section: string; element: string; action: string; role: string;
+  /** Playwright locator expression, scoped inside its section's locator. Never contains private values. */
+  locator: string;
+  identities?: string[];
+  status: 'pending' | 'operated' | 'skipped' | 'barrier';
+  /** Observed effect when operated; the reason when skipped or behind a barrier. */
+  effect: string;
+  /** Barrier note ID (barriers/<id>.md) when status is barrier. */
+  barrier?: string;
+};
+export type RouteInteractions = {
+  version: 1; route: string; capturedAt: string;
+  sections: { id: string; title: string; locator: string }[];
+  interactions: Interaction[];
+};
+export type CharterKind = 'setup' | 'routes' | 'inventory' | 'intent' | 'scenarios' | 'run' | 'lock' | 'task';
+export type Charter = {
+  id: string; name: string; kind: CharterKind; mode: 'HITL' | 'AFK'; mission: string;
+  /** What the charter is about: a route ID, capability path IDs, or a run ID, depending on kind. */
+  subjects?: string[];
+  tier?: Tier;
+  blockedBy: string[];
+  status: 'open' | 'closed' | 'out-of-scope';
+  claimedBy: string | null;
+  /** One line: the outcome when closed, the reason when out of scope. Detail lives in the artifact the charter produced. */
+  gist: string;
+};
+export type Chart = {
+  version: 1; destination: string; notes: string[]; fog: string[]; outOfScope: string[]; charters: Charter[];
 };
 export type Result = {
   scenarioId: string; attempt: number; status: Status; at: string; actual: string;

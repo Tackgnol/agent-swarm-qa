@@ -31,7 +31,7 @@ export function renderFeature(path: PathEntry, scenarios: Scenario[]): string {
   ];
   for (const scenario of scenarios) {
     assert.ok(scenario.steps.length > 0 && scenario.expected.length > 0, 'An exported scenario needs actions and expected outcomes.');
-    lines.push(`  @${safeId(scenario.id)} @${scenario.critical ? 'critical' : 'optional'}`,
+    lines.push(`  @${safeId(scenario.id)} @${scenario.critical ? 'critical' : 'optional'}${scenario.tier ? ` @${scenario.tier}` : ''}`,
       `  Scenario: ${scenario.id} - ${title(scenario.title)}`,
       `    # Approved boundary: ${title(scenario.boundary)}`,
       ...steps('Given', scenario.preconditions), ...steps('When', scenario.steps), ...steps('Then', scenario.expected), '');

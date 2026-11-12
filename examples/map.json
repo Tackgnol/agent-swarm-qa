@@ -1,7 +1,7 @@
 {
   "version": 1,
   "paths": [{
-    "id": "PATH-001", "title": "Owned draft editing", "route": "/drafts/:id",
+    "id": "PATH-001", "title": "Owned draft editing", "route": "/drafts/:id", "routes": ["draft-editor"],
     "intent": {
       "goal": "An owner can edit a draft without losing saved work.",
       "rules": ["Only the owner may edit the draft", "Saved edits survive reload"],
