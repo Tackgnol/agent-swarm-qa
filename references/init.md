@@ -1,8 +1,12 @@
-# Init: decisions, credentials and workspace
+# Init: destination, decisions, credentials and workspace
 
-Inspect existing QA configuration/checkpoints first. If present, offer the next saved phase and ask only about changes. Read project instructions and current scripts; preserve unrelated product changes. Setup covers facts that affect testing, not an exhaustive product interview.
+Charter kind `setup`. Look for an existing `<product>/.scratch/QA/<project>/` first. One with a map resumes from `qa.ts map`; one without is adopted per [wayfinding.md](wayfinding.md). Read project instructions and current scripts; preserve unrelated product changes. Setup covers facts that affect testing, not an exhaustive product interview.
 
-Once the product root and slug are known, create the empty workspace **before** asking the remaining Init questions: `node <skill>/scripts/qa.ts init <product-root> <project-slug>`. This enables a planning report while the interview is incomplete. It creates no approvals and leaves issue storage/write mode explicitly undecided. The helper refuses to overwrite existing work.
+Once the product root and slug are known, create the empty workspace **before** asking the remaining Init questions: `node <skill>/scripts/qa.ts init <product-root> <project-slug>`. This charts the opening of the map and enables a planning report while the interview is incomplete. It creates no approvals and leaves issue storage/write mode explicitly undecided. The helper refuses to overwrite existing work. Then claim the setup charter.
+
+## Name the destination
+
+The destination is what the finished effort looks like, in one or two lines: which app and environment, which part of it, and how far up the tiers. It fixes the scope every charter is measured against, so settle it with the user before anything else and write it to `destination` in `charters.json`. Propose the full shape as the default: a locked happy-path baseline, then the error tier, then the adversarial tier. A smaller destination, such as the baseline for one area, is the user's call; move what it leaves out from the fog to `outOfScope`.
 
 ## Initial interview
 
@@ -19,11 +23,11 @@ Store confirmed non-sensitive answers in `config.json`, pending questions as str
 node <skill>/scripts/qa.ts approve <qa-root> setup <actual-user-decision-reference>
 ```
 
-The approval helper is a recorder, not proof of human consent. Use it only after the user has answered. Changed setup content invalidates its approval.
+The approval helper is a recorder, not proof of human consent. Use it only after the user has answered. Changed setup content invalidates its approval. With the destination named and the setup approved, close the setup charter; credential slots still waiting on the user are a `task` charter that blocks only the work needing them.
 
 ## Dedicated private-prerequisite handoff
 
-Finish this Init step separately from coverage, fixture policy and path grilling. Present the private file path and **empty key slots**, not a question asking the user to describe connection details in chat. Ask only whether the slots are filled or a manual session is needed. Store unresolved prerequisites by key name, not repeated questions about account details or room URLs.
+Finish this Init step separately from coverage, fixture policy and capability questions. Present the private file path and **empty key slots**, not a question asking the user to describe connection details in chat. Ask only whether the slots are filled or a manual session is needed. Store unresolved prerequisites by key name, not repeated questions about account details or room URLs.
 
 For an Owlbear lane, for example, use `environment.hostUrlEnv: "OWLBEAR_URL"`, numbered identity keys such as `OWLBEAR_LOGIN_1` / `OWLBEAR_PASS_1` and `_2` for another host identity when required. App accounts have their own aliases/key names; a host login does not establish the embedded app identity. Add other private parameters such as `OWLBEAR_LOGIN_METHOD` to `config.privateEnvKeys` only if needed. Respect user-selected existing spellings (including `OWLBREAR_*`) rather than silently renaming their local keys. These provider-specific slots apply only when that integration is in scope.
 
@@ -84,14 +88,19 @@ If a tool cannot use credentials without exposing them to the agent, ask for a m
   .env.qa                     private; never opened by the agent
   .env.qa.example             empty key names only
   .gitignore                  excludes the workspace, including secrets
+  charters.json               the map's store: destination, charters, fog, out of scope
+  map.md                      rendered map; regenerate with `qa.ts map`, never edit
   config.json                 non-sensitive setup + setup approval
-  map.json                    discovered paths + reviewed inclusion/exclusion
+  routes.json                 every route, its sources, identities and status
+  interactions/<route>.json   sections and elements: Playwright locator, action, observed effect
+  barriers/<slug>.md          what automation cannot do, and the manual procedure
+  map.json                    capability paths: intent, linked routes, reviewed inclusion
   interview/decisions.md       user answers, rationale, unresolved branches
-  scenarios/QA-001.json        versioned-by-fingerprint scenario contracts
-  runners/*.ts                reusable, reviewed browser/API steps
-  checkpoint.json             current phase, active jobs, next action, debt
-  review.json                 persisted numeric review frontier and authorized jumps
-  locked.json                 exact approved suite fingerprint and source run
+  scenarios/QA-001.json        versioned-by-fingerprint scenario contracts, by tier
+  runners/*.ts                reusable, reviewed Playwright/API steps
+  checkpoint.json             position inside the charter in hand: jobs, questions, debt
+  review.json                 persisted approval order and authorized jumps
+  locked.json                 locked suite fingerprint, source run, tiers, interaction fingerprint
   issues/                     local findings/drafts and remote tracker references
   exports/gherkin/<export-id>/ approved-spec .feature drafts and source manifest
   planning/report.*           standard planning report (JSON/MD/HTML)
@@ -105,4 +114,4 @@ If a tool cannot use credentials without exposing them to the agent, ask for a m
     private/                  sensitive local state; never shared/rendered
 ```
 
-`node <skill>/scripts/qa.ts report <qa-root>` updates the planning report even when the interview is incomplete. Update the checkpoint before waiting for input or ending the session. Init is complete when setup decisions, credential allocations and the mutation/issue boundaries are confirmed; credential-dependent checks may remain blocked pending local entry.
+`node <skill>/scripts/qa.ts report <qa-root>` updates the planning report even when the interview is incomplete. Update the checkpoint before waiting for input or ending the session. The setup charter closes when the destination is named and the setup decisions, credential allocations and mutation/issue boundaries are confirmed; credential-dependent work may remain blocked pending local entry.

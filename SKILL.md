@@ -1,59 +1,68 @@
 ---
 name: agent-swarm-qa
-description: Establish feature intent and risks, derive a reusable QA suite, run approved journeys with coordinated agents, and produce standard HTML/Markdown/JSON evidence reports. Use for broad web-app QA, canary retests and production-readiness checks; not single-bug implementation or a penetration test.
+description: Learn a web app's routes and interactions with Playwright, settle what each capability is for, then build, run and lock a layered regression suite (happy paths, error paths, adversarial attacks) with evidence reports. Use for broad web-app QA, retests of a locked suite and production-readiness checks; not single-bug implementation or a penetration test.
 ---
 
 # Agent Swarm QA
 
-Turn exploratory QA into a user-approved, repeatable suite. Follow **Init → Mapping → First run under scrutiny → Lock in → Retest**, producing the same report format throughout. Resume the saved phase rather than restarting the interview. The repository containing this file is the skill source; all product-specific QA data belongs in the product's `.scratch/QA/<project>/`.
+QA of a whole app outlasts any one conversation, so the effort lives on disk as a **map** of **charters**. A charter is one bounded mission with a checkable end. You hold one charter at a time, close it, and return to the map. The map decides what happens next; the conversation never does.
 
-## Routing and tools
+The **destination** is a locked, repeatable suite for the scope the user agreed: a happy-path **baseline** first, then the **error** and **adversarial** tiers layered on it. The effort moves toward it in this order, and each line is fog until the one before it is done:
 
-Read only the phase reference needed now. Bundled helpers use Node >=22.18 with native TypeScript; no runtime packages, browser vendor or tracker are required by the skill. Resolve `scripts/qa.ts` relative to this SKILL.md, not the product repository. Discover available browser, agent and tracker tools instead of assuming names or installed integrations.
+1. **Learn interactions:** every route, every interactive element on it, and how to operate each with Playwright. The result is the **inventory**, addressed `route/section/element/action`.
+2. **Learn functionality:** what each capability is for, settled with the user, then its happy-path scenarios.
+3. **Happy run under scrutiny**, asking the user wherever the app and the agreed intent disagree.
+4. **Lock the baseline:** scenarios, operating knowledge and runners, reusable on every later build.
+5. **Layer on top:** known error paths, then adversarial scenarios that use everything learned to break the app.
 
-| Phase | Reference | Completion gate |
-|---|---|---|
-| Init | [init.md](references/init.md) | Non-sensitive setup decisions confirmed; required account aliases/env key names allocated; private file and output layout created |
-| Mapping | [mapping.md](references/mapping.md) | Feature rules and risks established; agent derives cases and obtains one displayed scope confirmation, with genuine ambiguities resolved or deferred |
-| First run | [execution.md](references/execution.md) | Every approved scenario has an honest disposition; unexpected specification questions resolved or explicitly pending |
-| Lock in | [lock-and-report.md](references/lock-and-report.md) | User reviews the report and confirms the scenario contract; a fingerprint records the reviewed baseline |
-| Retest / resume | [execution.md](references/execution.md), then [lock-and-report.md](references/lock-and-report.md) | Execute unchanged locked cases on the observed build; review changed expectations before relocking; always regenerate the standard report |
-| `to-gherkin` | [to-gherkin.md](references/to-gherkin.md) | Export the current approved specs as reviewable `.feature` drafts; observed results never define expectations |
+Whatever Playwright cannot do along the way becomes a **barrier** note.
 
-**Mandatory credential boundary:** tell the user: “Fill `.env.qa` locally. I will never open, print, search, or copy its contents into chat or reports. Trusted local runners load it directly.” Keep only aliases and env key names in agent-visible configuration. This restriction applies to every subagent, tool inspection and debugging attempt. Read [init.md](references/init.md) before credential setup.
+## The loop
 
-Separate **setup decisions**, **private prerequisites**, and **scenario intent**. Private URLs, login parameters and account values belong in the dedicated Init handoff to `.env.qa`, not a browser-matrix, fixture-policy or scenario question. Once allocated, refer to their aliases/key names and check presence locally. A later missing prerequisite gets its own focused handoff; do not reopen unrelated setup questions.
+Run this loop from the first message until the destination is reached. `<skill>` is the directory holding this file; `<qa-root>` is the product's `.scratch/QA/<project>/`.
 
-## Interview for intent; derive the tests
+1. **Orient.** `node <skill>/scripts/qa.ts map <qa-root>`. Run it at the start of a session, after every close, after any context compaction, and whenever you are unsure what you were doing. With no workspace yet, read [init.md](references/init.md) and create one; that charts the map.
+2. **Take one charter.** The one the user named, else the one in hand, else the first on the frontier: `qa.ts claim <qa-root> <charter>`. The claim prints the mission, the reference to read and the completion criterion.
+3. **Work that charter.** Read its reference now, and other files only as the charter needs them.
+4. **Park everything else.** A new route, odd behavior in another capability, an attack idea, a tooling fix: write it into `charters.json` as a charter or a fog line, then return to the charter in hand.
+5. **Close.** `qa.ts close <qa-root> <charter> "<one-line gist>"`. The helper checks the criterion against what is recorded on disk. A refusal lists what is missing: do that work.
+6. **Graduate.** Add the charters this close made specifiable, delete the fog lines they replace, rule out what sits beyond the destination. Return to step 1.
 
-The human supplies product intent; the agent owns test design. Discuss a coherent capability such as party collaboration, not each route, click or generated QA case. Establish the goal, actors, behavior rules, release-critical outcomes and permitted effects. Investigate discoverable facts yourself. Ask targeted questions only where intent is uncertain, contradictory or consequential; settled behavior needs no ceremonial grilling. Detailed scenario-by-scenario review is opt-in.
+Keep looping across charters in the same conversation. End the turn only when the charter in hand needs the user's own answer, when the map says every open charter is blocked on the user, or when the destination is reached. While a HITL charter waits on the user, [swarm workers](references/swarm.md) carry AFK frontier charters.
 
-**Document before question:** persist the capability brief or proposed revision and regenerate its review document, then present the exact version before asking. Show goal/rules/risks and unresolved decisions in a compact summary; keep the derived cases available as detail. After deriving cases, obtain one explicit confirmation of the displayed scope and boundaries, covering that batch without a question for each case. Actual consent is required; a recommendation or silence is not confirmation. Previously explicit approvals remain valid for unchanged content.
+When you speak to the user, name charters, capabilities and scenarios by their titles, with the ID inside the name where it helps. After a close, say in one line what closed and what is next.
 
-Focus the preview on the capability being discussed (`report.html#path-PATH-001`); use `#case-QA-001` when a specific example needs discussion. Reuse the tab, restore focus after regeneration and verify the heading is visible. If viewer control is unavailable, provide the direct link and excerpt and disclose that limitation.
+## Charters
 
-**Stable bookkeeping:** `next-path` and `review.json` track the first unfinished path; they are an approval frontier, not a human question queue. Keep IDs stable and use `approve-batch` to record a confirmed capability or suite across its displayed paths and cases in frontier order. Existing fine-grained paths can be discussed together without renumbering. A deliberate order change uses a user-authorized `focus-path`. See Mapping for batch recording and migration.
+| Kind | Mode | Reference | Closes when |
+|---|---|---|---|
+| `setup` | HITL | [init.md](references/init.md) | The destination is named and the user confirmed the setup |
+| `routes` | AFK | [interactions.md](references/interactions.md) | Every route is listed with its sources and identities, and each pending route has an inventory charter |
+| `inventory` | AFK | [interactions.md](references/interactions.md) | Every element on the route is operated, or classified with a reason |
+| `intent` | HITL | [functionality.md](references/functionality.md) | The capability has a goal and rules the user settled |
+| `scenarios`, happy | HITL | [functionality.md](references/functionality.md) | Happy-path scenarios exist and the user confirmed the displayed scope |
+| `scenarios`, error | HITL | [error-paths.md](references/error-paths.md) | Same, for the error tier; only after the baseline is locked |
+| `scenarios`, adversarial | HITL | [adversarial.md](references/adversarial.md) | Same, for the adversarial tier; only after the baseline is locked |
+| `run` | AFK | [execution.md](references/execution.md) | The build is observed, every scenario has a recorded disposition, the report is rendered |
+| `lock` | HITL | [lock-and-report.md](references/lock-and-report.md) | The user confirmed the contract and the lock matches the current suite |
+| `task` | either | its own mission | Work that unblocks another charter is done |
 
-Execute the confirmed scope, keeping expectations independent of observed results. A new build requires new evidence, not another specification interview. Missing coverage is work for the agent or a reported execution block; it is never an automatic request to review every listed QA ID.
+A **HITL** charter closes only through the user's own answer; an **AFK** charter is the agent's alone. [wayfinding.md](references/wayfinding.md) holds the charter shape, what each close graduates, fog and out-of-scope handling, and how to adopt a workspace that predates the map. Read it before the first edit to `charters.json`.
 
-## Swarm contract
+Conditional references: [barriers.md](references/barriers.md) when Playwright cannot perform a step; [swarm.md](references/swarm.md) before dispatching workers; [embedded-apps.md](references/embedded-apps.md) for iframe or room integrations; [api-contracts.md](references/api-contracts.md) for requested API fuzzing; [to-gherkin.md](references/to-gherkin.md) for a `.feature` export.
 
-Default to subagent-driven execution when tools permit it and the mapped work has useful independent lanes. During Mapping, derive an execution plan from the confirmed capabilities and discovered resources; before dispatch, read [swarm.md](references/swarm.md). The parent owns the map, approvals, resource schedule, finding reconciliation and report. Delegate bounded test assignments with sufficient context to execute, rather than asking several agents to explore the whole app.
+## Standing rules
 
-Schedule by resource conflicts and dependencies, not feature names alone. Give each worker approved case/matrix assignments, target/build, permitted effects, exclusive accounts/fixtures/browser contexts or a serialized shared-resource turn, dependencies, evidence paths and cleanup ownership. Verify isolation before concurrent dispatch. A shared browser/profile or live room has one operator; multi-actor journeys stay in one coordinated lane. Keep a global request budget. Use fewer workers or serial execution when resources or tool slots require it, and disclose that limit.
+**Credentials.** Tell the user: “Fill `.env.qa` locally. I will never open, print, search, or copy its contents into chat or reports. Trusted local runners load it directly.” Agent-visible files hold aliases and env key names only. This binds every worker, tool inspection and debugging attempt.
 
-Keep general functionality in the suite alongside recent regressions. Verify creation, editing, durable save/reload, navigation, cancellation and dependent views where applicable. Two genuinely distinct accounts are required to prove cross-account behavior. Passing local mocks, HTTP writes and actual deployed journeys establish different things; preserve those boundaries in results.
+**Who owns what.** The user owns product intent: goals, rules, priorities, permitted effects. The agent owns everything else: routes, elements, locators, test design, scheduling. Interview at the level of a capability and only where intent is unclear, contradictory or consequential. Actual consent is an answer the user gave; a recommendation or silence is neither.
 
-For embedded-host or room integrations, read [embedded-apps.md](references/embedded-apps.md). For requested CATS/API fuzzing, read [api-contracts.md](references/api-contracts.md) before execution. These are conditional coverage, not compulsory additions to every product.
+**Expectations come from settled intent.** What the app does today is evidence about the implementation. A scenario expects what the rules say, so a mismatch is a finding or a question, and observed behavior never rewrites an expectation.
 
-## Report and stopping rules
+**Tiers in order.** Before the baseline locks, error paths and attacks are fog: note the idea in one line and keep going. The helper refuses to run them earlier.
 
-Always produce `report.json`, `report.md` and an offline `report.html`: a planning snapshot before execution, and a run report for every completed, failed, paused or interrupted attempt. The [standard report contract](references/lock-and-report.md) defines the sections. Preserve first failures, all attempts, missing coverage, raw fuzzer classifications and cleanup debt. Open the HTML for review when a file/browser preview is available.
+**Stay inside the agreed effects.** Act within the mutation policy, on run-owned fixtures, within the request budget. Stop the affected lane on 429, service instability or unintended data changes. A barrier gets a note and stays in place. Existing user data stays untouched.
 
-Classify confirmed product defects, contract gaps, harness mistakes and environment blocks separately. Confirm candidate findings with a controlled reproduction; additional retries need a new hypothesis. Stop the affected lane on 429, service instability or unintended data changes. A flaky failure followed by a pass is inconclusive until its cause is explained with evidence; it never silently becomes green.
+**Every stop leaves a report.** Each run, including a failed or interrupted one, renders `report.json`, `report.md` and `report.html` from the same model. First failures, all attempts and missing coverage stay visible; a flaky pass stays inconclusive until its cause is shown.
 
-Use the chosen issue destination after duplicate search, within its confirmed write mode. Upload inspected screenshots and embed them as images in remote issues; a local-file link is not an uploaded picture. Keep local drafts when uploads/integrations are unavailable and disclose that limitation.
-
-Clean up only ledger-owned fixtures after dependent checks finish. Compare preserved original room/shared state. If cleanup cannot finish, hand off IDs, ownership and next actions. Never remove existing user data to make a test baseline convenient.
-
-The final recommendation is **ready for the tested scope**, **hold**, or **readiness unproven**, against the user's agreed critical journeys and supported matrix. Missing optional coverage is a limitation, not an automatic blocker. Locking the suite approves expectations, not a release or known failures. No phase authorizes publication, deployment, package release or unrequested external notifications.
+**The lock approves expectations.** It releases nothing. The recommendation is **ready for the tested scope**, **hold** or **readiness unproven**, and publication, deployment and external notifications each need their own request from the user.

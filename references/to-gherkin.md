@@ -8,9 +8,9 @@ node <skill>/scripts/qa.ts to-gherkin <qa-root> <unique-export-id>
 
 ## Source contract
 
-The helper validates the **current approved workspace suite**: non-sensitive setup, reviewed mapping and scenario content fingerprints. All included specs must be approved; if review is incomplete or content changed, return to the affected review frontier. Do not approve anything on the user's behalf just to enable export. No successful QA run or lock is required.
+The helper validates the **current approved workspace suite**: non-sensitive setup, reviewed capabilities and scenario content fingerprints. All included specs must be approved; if review is incomplete or content changed, return to the affected review frontier. Do not approve anything on the user's behalf just to enable export. No successful QA run or lock is required.
 
-Only `scenarios/*.json` and their approved mapping define the behavior:
+Only `scenarios/*.json` and their approved capability paths define the behavior:
 
 - `preconditions` become `Given` followed by `And` steps.
 - `steps` become `When` followed by `And` steps.
@@ -32,7 +32,7 @@ manifest.json         source suite/scenario fingerprints, IDs and source paths
 
 Approved excluded paths produce no feature file; their IDs/reasons appear in the manifest. Existing exports are never overwritten or merged. Choose a new export ID for a new draft, preserving any human edits to prior exports. No product feature directory, source spec, result, approval or lock is changed by export. The normal review-cursor bookkeeping may be refreshed during validation.
 
-Files carry `@qa`, `@draft`, path/QA ID tags and `@critical` or `@optional`. They use English Gherkin keywords while preserving the approved natural-language wording; no translation, inferred examples, Scenario Outlines, Background extraction or semantic rewriting is performed. Header whitespace is normalized. Multiline/control-bearing text is preserved as a JSON string inside a backtick-delimited `json` Doc String; decoding that content restores the exact source text. This avoids flattening meaningful line breaks or introducing extra Gherkin syntax. The format follows the [Gherkin reference](https://cucumber.io/docs/gherkin/reference/).
+Files carry `@qa`, `@draft`, path/QA ID tags, `@critical` or `@optional`, and the scenario's tier (`@happy`, `@error`, `@adversarial`) when it has one. `operations` are operating knowledge and are not exported. They use English Gherkin keywords while preserving the approved natural-language wording; no translation, inferred examples, Scenario Outlines, Background extraction or semantic rewriting is performed. Header whitespace is normalized. Multiline/control-bearing text is preserved as a JSON string inside a backtick-delimited `json` Doc String; decoding that content restores the exact source text. This avoids flattening meaningful line breaks or introducing extra Gherkin syntax. The format follows the [Gherkin reference](https://cucumber.io/docs/gherkin/reference/).
 
 ## Review handoff
 

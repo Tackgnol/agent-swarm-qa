@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent Swarm QA"
-  short_description: "Map, approve, run and repeat evidence-backed QA"
-  default_prompt: "Use $agent-swarm-qa to establish feature intent and risks with me, derive scenarios, confirm the coverage summary as a batch, then run QA and produce the standard report."
+  short_description: "Learn an app, then build and lock layered QA"
+  default_prompt: "Use $agent-swarm-qa to chart QA for this app: learn its routes and interactions, settle what each capability is for with me, then run and lock the happy-path baseline before adding error and adversarial tiers."

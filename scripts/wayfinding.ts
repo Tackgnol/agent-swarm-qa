@@ -29,7 +29,7 @@ function validate(chart: Chart): Chart {
   for (const key of ['notes', 'fog', 'outOfScope'] as const) {
     assert.ok(Array.isArray(chart[key]) && chart[key].every(line => typeof line === 'string'), `charters.json ${key} must be a list of lines.`);
   }
-  assert.equal(typeof chart.destination, 'string', 'charters.json needs a destination (empty until it is named).');
+  assert.ok(typeof chart.destination === 'string', 'charters.json needs a destination (empty until it is named).');
   const byId = new Map<string, Charter>();
   for (const charter of chart.charters) {
     assert.ok(!byId.has(safeId(charter.id)), `Duplicate charter ID ${charter.id}.`);
@@ -128,13 +128,13 @@ export function claim(root: string, id: string, who: string): string {
   const chart = loadChart(root);
   const charter = find(chart, id);
   assert.ok(who.trim(), 'Name the claimant: parent, or a worker lane ID.');
-  assert.equal(charter.status, 'open', `${charter.name} is already ${charter.status}.`);
+  assert.ok(charter.status === 'open', `${charter.name} is already ${charter.status}.`);
   if (charter.claimedBy === who) {
     return brief(charter);
   }
-  assert.equal(charter.claimedBy, null, `${charter.name} is claimed by ${charter.claimedBy}.`);
+  assert.ok(charter.claimedBy === null, `${charter.name} is claimed by ${charter.claimedBy}.`);
   const waiting = charter.blockedBy.map(blocker => find(chart, blocker)).filter(blocker => blocker.status === 'open').map(blocker => blocker.name);
-  assert.equal(waiting.length, 0, `${charter.name} waits on: ${waiting.join(', ')}.`);
+  assert.ok(waiting.length === 0, `${charter.name} waits on: ${waiting.join(', ')}.`);
   const held = chart.charters.find(item => item.status === 'open' && item.claimedBy === who);
   assert.ok(!held, `${who} already holds ${held?.name} (${held?.id}). Close or release it before taking another charter.`);
   charter.claimedBy = who;
@@ -146,7 +146,7 @@ export function claim(root: string, id: string, who: string): string {
 export function release(root: string, id: string): string {
   const chart = loadChart(root);
   const charter = find(chart, id);
-  assert.equal(charter.status, 'open', `${charter.name} is already ${charter.status}.`);
+  assert.ok(charter.status === 'open', `${charter.name} is already ${charter.status}.`);
   charter.claimedBy = null;
   saveChart(root, chart);
   return `Released ${charter.name}.`;
@@ -156,7 +156,7 @@ export function release(root: string, id: string): string {
 export function ruleOut(root: string, id: string, reason: string): string {
   const chart = loadChart(root);
   const charter = find(chart, id);
-  assert.equal(charter.status, 'open', `${charter.name} is already ${charter.status}.`);
+  assert.ok(charter.status === 'open', `${charter.name} is already ${charter.status}.`);
   assert.ok(reason.trim(), 'Record why this sits beyond the destination.');
   charter.status = 'out-of-scope';
   charter.claimedBy = null;

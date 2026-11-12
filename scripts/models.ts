@@ -44,7 +44,7 @@ export type Run = {
   fixtures: { id: string; owner: string; cleanup: 'pending' | 'done' | 'handed-off'; note: string }[];
   findings: { id: string; title: string; kind: string; impact: string; scenarioIds: string[]; issueUrl?: string }[];
   limits: string[];
-  /** Fingerprint of the interaction map when the run started. */
+  /** Fingerprint of the inventory when the run started. */
   interactionsHash?: string;
   automated: { name: string; boundary: string; passed: number; failed: number; skipped: number; log: string }[];
   fuzzing: { name: string; executed: number; rawErrors: number; rawWarnings: number; confirmedDefects: number; log: string }[];

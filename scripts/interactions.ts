@@ -99,7 +99,7 @@ export function resolveOperation(interactions: Map<string, RouteInteractions>, o
   assert.ok(route && section && element && action && rest.length === 0, `${operation}: an operation is route/section/element/action.`);
   const found = interactions.get(route)?.interactions.find(item => item.section === section && item.element === element && item.action === action);
   assert.ok(found, `${operation}: no such interaction. Inventory the route, or correct the address.`);
-  assert.equal(found.status, 'operated', `${operation}: only operated interactions can drive a scenario (this one is ${found.status}).`);
+  assert.ok(found.status === 'operated', `${operation}: only operated interactions can drive a scenario (this one is ${found.status}).`);
   return found;
 }
 
@@ -125,7 +125,7 @@ export function inventoryGaps(root: string, route: Route): string[] {
   return pending.length ? [`Not yet operated or classified: ${pending.join(', ')}.`] : [];
 }
 
-/** Low-resolution coverage of the interaction map, for the agent and the review document. */
+/** Low-resolution coverage of the inventory, for the agent and the review document. */
 export function interactionSummary(root: string): string {
   const routes = loadRoutes(root);
   const interactions = loadInteractions(root);

@@ -96,12 +96,12 @@ export function closeCharter(root: string, id: string, gist: string): string {
   const chart = loadChart(root);
   const charter = chart.charters.find(item => item.id === id);
   assert.ok(charter, `Unknown charter ${id}.`);
-  assert.equal(charter.status, 'open', `${charter.name} is already ${charter.status}.`);
+  assert.ok(charter.status === 'open', `${charter.name} is already ${charter.status}.`);
   assert.ok(gist.trim() && !gist.includes('\n'), 'Record a one-line gist of the outcome; the detail stays in the artifact the charter produced.');
   const waiting = charter.blockedBy.filter(blocker => chart.charters.find(item => item.id === blocker)!.status === 'open');
-  assert.equal(waiting.length, 0, `${charter.name} still waits on: ${waiting.join(', ')}.`);
+  assert.ok(waiting.length === 0, `${charter.name} still waits on: ${waiting.join(', ')}.`);
   const gaps = completionGaps(root, chart, charter);
-  assert.equal(gaps.length, 0, `${charter.name} is not done:\n- ${gaps.join('\n- ')}`);
+  assert.ok(gaps.length === 0, `${charter.name} is not done:\n- ${gaps.join('\n- ')}`);
   charter.status = 'closed';
   charter.claimedBy = null;
   charter.gist = gist.trim();

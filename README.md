@@ -1,20 +1,33 @@
 # Agent Swarm QA
 
-A skill for turning exploratory web-app QA into a reviewed, repeatable suite.
+A skill that learns a web app and turns that knowledge into a reviewed, repeatable, layered QA suite.
 
-1. **Init:** choose environments, guest/authenticated paths, account roles, issue storage and coverage. Keep secrets in a private `.env.qa` that the agent never opens.
-2. **Mapping:** establish capability goals, behavior rules and risks; derive tests and confirm the displayed scope as a batch. Ask about genuine uncertainty rather than walking through every case.
-3. **First run under scrutiny:** execute only approved scenarios, preserve evidence, ask again when expectations are ambiguous, and retain useful TS/JS runners.
-4. **Lock in:** review a visual report and record the agreed scenario fingerprint. Known failures remain failures.
-5. **Retest:** run the same contract against a new observed build and always produce HTML, Markdown and JSON reports.
+1. **Learn interactions:** find every route, every interactive element on it, and how to operate each with Playwright. Stored as `route/section/element/action` addresses with locators and observed effects.
+2. **Learn functionality:** work out what each capability is for, ask you only about what is genuinely unclear, and derive happy-path scenarios.
+3. **Test the happy paths** under scrutiny, asking again wherever the app and the agreed intent disagree.
+4. **Lock the baseline:** scenarios, operating knowledge and Playwright runners, reusable on every later build.
+5. **Note the barriers:** whatever automation cannot do, such as reCAPTCHA v3, gets a Markdown note with a manual procedure.
+6. **Build on top:** known error paths, then an adversarial tier where the agent uses everything it learned to try to break the app. Each layer is run and locked in turn.
 
-Mapping also builds a swarm execution plan. Available subagents receive bounded assignments with approved cases, account/session and fixture allocations, dependencies and separate evidence outputs. Independent work runs concurrently; shared browsers, accounts and rooms are scheduled to avoid interference. The parent coordinates, reconciles evidence and owns the final report. See [the swarm workflow](references/swarm.md).
+Before any of that, **Init** sets up environments, identities and issue storage, with secrets in a private `.env.qa` the agent never opens.
 
-See [SKILL.md](SKILL.md) for the agent workflow. The interview-tree approach is adapted from the local `grilling`/`grill-me` skills; the visual review idea is inspired by `improve-codebase-architecture`. QA-specific reporting is implemented here without CDN dependencies.
+## How it keeps its focus
+
+The effort lives on disk as a **map** of **charters**, not in the conversation. A charter is one bounded mission: inventory this route, settle this capability's intent, run this suite. The agent holds one charter at a time, the helper closes it only when its completion criterion is met on disk, and `qa.ts map` shows what is done, what is takeable next (the frontier), what is still fog and what is out of scope. A long conversation, a context compaction or a fresh session all resume from the same map.
+
+Anything the agent notices that is not the charter in hand is parked as a new charter or a fog line. Later layers stay fog until the earlier ones are locked, and the helper refuses to run error or adversarial scenarios before a baseline lock.
+
+The approach is adapted from Matt Pocock's `wayfinder` skill (destination, map, frontier, fog of war), with tickets replaced by QA charters whose completion is checked by code. The interview style comes from his `grilling` skill. See [the map reference](references/wayfinding.md).
+
+## Swarm
+
+Where subagents are available, independent charters and run lanes go to workers: one route inventory per worker, separate browser contexts, accounts and fixtures, shared resources scheduled to avoid interference. The parent coordinates, reconciles evidence and owns the report. See [the swarm workflow](references/swarm.md). Without subagents the skill runs serially and says so.
+
+See [SKILL.md](SKILL.md) for the agent workflow. QA reporting is implemented here without CDN dependencies.
 
 ## Install
 
-You need **Node.js 22.18 or newer** and an agent that can read local skill files and run commands. Live web QA also needs browser-control tools; parallel execution needs subagent support. Without subagents, the skill can run serially and report that limitation. Git is required for the manual installation below. No `npm install` is needed to use the skill's helpers; browser tools and issue-tracker connections are configured separately in your agent.
+You need **Node.js 22.18 or newer** and an agent that can read local skill files and run commands. Live web QA needs **Playwright** available to the agent: Playwright MCP browser tools, the product's own Playwright install, or one in the environment. The skill stores everything it learns as Playwright locators. Parallel execution needs subagent support. Git is required for the manual installation below. No `npm install` is needed to use the skill's helpers; Playwright and issue-tracker connections are configured separately in your agent.
 
 ### Codex: ask the built-in installer
 
@@ -69,7 +82,7 @@ mkdir -p "$HOME/.claude/skills"
 git clone https://github.com/Tackgnol/agent-swarm-qa.git "$HOME/.claude/skills/agent-swarm-qa"
 ```
 
-Invoke it with `/agent-swarm-qa`, or describe a QA task and Claude Code loads it from the description. If `~/.claude/skills` did not exist when your session started, restart Claude Code so the new directory is picked up. Claude Code's subagents and browser tools (for example the Playwright or Claude in Chrome integrations) cover the swarm and live-browser parts.
+Invoke it with `/agent-swarm-qa`, or describe a QA task and Claude Code loads it from the description. If `~/.claude/skills` did not exist when your session started, restart Claude Code so the new directory is picked up. Claude Code's subagents and the Playwright MCP integration cover the swarm and live-browser parts.
 
 ### GitHub Copilot
 
@@ -118,15 +131,24 @@ For an ongoing QA chat, ask the agent to reload `SKILL.md` and the relevant refe
 
 Example request:
 
-> Use $agent-swarm-qa to initialize QA for this app. Discuss feature intent and unresolved decisions with me, derive the cases, confirm the coverage summary, then test on canary with screenshots and local findings.
+> Use $agent-swarm-qa to chart QA for this app on canary. Learn the routes and interactions, settle what each capability is for with me, then run and lock the happy paths before adding error paths and adversarial testing.
+
+To continue later, in the same or a new conversation: “Continue the QA map.” To see where things stand yourself, open `<qa-root>/map.md`.
 
 Helpers run relative to this skill's location:
 
 ```text
 node scripts/qa.ts init <product-root> <project-slug>
+node scripts/qa.ts map <qa-root> [all]
+node scripts/qa.ts claim <qa-root> <charter> [claimant]
+node scripts/qa.ts close <qa-root> <charter> "<one-line gist>"
+node scripts/qa.ts release <qa-root> <charter>
+node scripts/qa.ts rule-out <qa-root> <charter> "<reason>"
+node scripts/qa.ts chart <qa-root>
 node scripts/qa.ts env-template <qa-root>
 node scripts/qa.ts prepare-env <qa-root>
 node scripts/qa.ts check-env <qa-root>
+node scripts/qa.ts interactions <qa-root>
 node scripts/qa.ts next-path-id <qa-root>
 node scripts/qa.ts next-path <qa-root>
 node scripts/qa.ts approve <qa-root> setup <actual-user-decision-reference>
@@ -139,7 +161,7 @@ node scripts/qa.ts run <qa-root> canary <new-run-id> retest
 node scripts/qa.ts to-gherkin <qa-root> <unique-export-id>
 ```
 
-`examples/` contains non-sensitive **unapproved** config, mapping and scenario shapes. Adapt them to the real product; copying an example is not user approval. Fill results according to [models.ts](scripts/models.ts). `report` without a run ID produces a planning report before execution is possible.
+`examples/` contains non-sensitive **unapproved** shapes: setup, a map of charters, routes, one route's interactions, a capability, a scenario and a barrier note. Adapt them to the real product; copying an example is not user approval. Fill results according to [models.ts](scripts/models.ts). `report` without a run ID produces a planning report before execution is possible.
 
 The `.env.qa` boundary is literal: the agent never inspects the file; trusted local code necessarily loads it to use credentials. Child stdout/stderr receive literal-value redaction, but encoded values and screenshots need collection-time protection. The file is local plaintext, not a vault. Users enter values locally rather than in chat.
 
@@ -147,9 +169,21 @@ Private host URLs use `environment.hostUrlEnv` references; additional private co
 
 QA output lives under the product's `.scratch/QA/<project>/`, not this skill repository. Existing workspaces, credentials and run IDs are not overwritten. Local report generation, locking a contract and selecting an issue tracker do not authorize deployment, publication or unrelated external writes.
 
-The interview is about capabilities, not a queue of QA IDs. New map entries can store `intent: { goal, rules, risks }`; the report shows these briefs and coverage counts before detailed cases. Existing small paths can share a capability discussion and one scope confirmation without renumbering. Unchanged saved approvals remain valid.
+### What you are asked, and what you are not
 
-Approval bookkeeping uses a persisted numeric frontier; batches follow that order and fingerprint their exact paths/cases. New paths append after the highest assigned number. A user-authorized `focus-path <qa-root> <path-id> <decision-ref> <reason>` records a deliberate order change and then returns to earlier unfinished work. Individual `approve` commands still work for existing workspaces. The frontier is not a requirement to ask a question for every path or case; incomplete execution coverage is not an interview backlog.
+You own product intent; the agent owns routes, elements, locators and test design. The route and element inventory is never interviewed. You are asked about capabilities: the goal, the rules, what blocks a release, and how the app should respond where that is unstated. Capabilities store `intent: { goal, rules, risks }`; the report shows these briefs and coverage counts before detailed scenarios, and one confirmation covers a displayed batch.
+
+Approvals fingerprint exactly what you confirmed. Scenario `operations` and capability `routes` are operating knowledge outside that fingerprint, so the agent can repair a moved button without coming back to you, while a changed expectation always does.
+
+### Tiers and locks
+
+Each scenario has a `tier`: `happy`, `error` or `adversarial`; scenarios from older workspaces without one count as happy. A lock records the scenario count per tier and a fingerprint of the inventory. On a retest, a changed inventory is reported as drift to repair before any failure is attributed to the product. An adversarial scenario must name the rule it tries to break, so its result is always “the rule held” or “the rule broke”.
+
+Adversarial testing here means abusing the app's own features with legitimate QA accounts inside the agreed effects and request budget. It is not a penetration test, a load test or an attempt to defeat bot checks.
+
+### Existing workspaces
+
+A workspace created before the map keeps working: approvals, runs and locks are unchanged. Ask the agent to adopt it; `qa.ts chart <qa-root>` charts the opening, and the agent closes what the recorded state already satisfies.
 
 ## Export approved specs to Gherkin
 

@@ -301,7 +301,7 @@ export function startRun(root: string, environment: string, id: string, phase: R
     version: 1, id, phase, createdAt: new Date().toISOString(), environment,
     observedBuild: 'unverified', suiteHash: suite.hash, openQuestions: [], fixtures: [], findings: [],
     limits: phase === 'retest' && lock?.interactionsHash && lock.interactionsHash !== operatingHash
-      ? ['The interaction map changed since the lock: an operation that no longer resolves is map drift to repair, not yet a product failure.'] : [],
+      ? ['The inventory changed since the lock: an operation that no longer resolves is inventory drift to repair, not yet a product failure.'] : [],
     interactionsHash: operatingHash, automated: [], fuzzing: [],
   };
   writeJson(join(path, 'run.json'), run);

@@ -119,7 +119,7 @@ test('error and adversarial tiers wait for a locked baseline, and an adversarial
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });
 
-test('a retest notes interaction-map drift since the lock instead of blaming the product', () => {
+test('a retest notes inventory drift since the lock instead of blaming the product', () => {
   const f = fixture();
   try {
     lockBaseline(f.root, 'first');
@@ -135,7 +135,7 @@ test('a retest notes interaction-map drift since the lock instead of blaming the
     entry.interactions[0].locator = "getByRole('textbox', { name: 'Draft title' })";
     writeJson(file, entry);
     const drifted = readJson<Run>(join(startRun(f.root, 'canary', 'drifted-map', 'retest'), 'run.json'));
-    assert.match(drifted.limits[0], /interaction map changed since the lock/);
+    assert.match(drifted.limits[0], /inventory changed since the lock/);
     assert.notEqual(drifted.interactionsHash, locked.interactionsHash);
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });

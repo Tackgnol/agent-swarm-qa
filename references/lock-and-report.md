@@ -2,7 +2,9 @@
 
 ## Lock in
 
-Render and inspect the first-run report **before** requesting lock-in. Present the actual scenarios and dispositions, unresolved defects, deferred coverage and evidence limitations. Grill remaining specification questions. Ask the user to confirm that this is the repeatable scenario contract, including any explicitly deferred cases; this is not approval to ignore bugs or deploy.
+Charter kind `lock`. The suite is locked in layers: the happy-path **baseline** first, then again after the error tier and after the adversarial tier. Each lock follows that layer's scrutiny run.
+
+Render and inspect the scrutiny-run report **before** requesting lock-in. Present the actual scenarios and dispositions, unresolved defects, deferred coverage and evidence limitations. Grill remaining specification questions. Ask the user to confirm that this is the repeatable scenario contract, including any explicitly deferred cases; this is not approval to ignore bugs or deploy.
 
 If that discussion changes a scenario or report, save, regenerate and present the revised document before the next question or lock-in request. Name the reviewed scenario IDs/revision so the answer refers to the visible contract.
 
@@ -12,7 +14,16 @@ After the actual confirmation:
 node <skill>/scripts/qa.ts lock <qa-root> <reviewed-run-id> <actual-lock-decision-reference>
 ```
 
-Locking requires current content approvals, a run snapshot matching the current suite, no open specification questions, and an explicit result/disposition for every scenario. A known failed or blocked scenario can be locked as an agreed expectation; its failure remains visible. `locked.json` stores the suite SHA-256 and source run. Later suite changes invalidate the retest gate and require review/scrutiny before relocking. Approval metadata records a conversation decision; it is not a cryptographic human-authentication system.
+Locking requires current content approvals, a run snapshot matching the current suite, no open specification questions, and an explicit result/disposition for every scenario. A known failed or blocked scenario can be locked as an agreed expectation; its failure remains visible. `locked.json` stores the suite SHA-256, the source run, the scenario count per tier and a fingerprint of the inventory. Later suite changes invalidate the retest gate and require review/scrutiny before relocking. Approval metadata records a conversation decision; it is not a cryptographic human-authentication system.
+
+What a lock makes reusable:
+
+- **Expectations:** the approved scenarios, fingerprinted. Changing one needs the user.
+- **Operating knowledge:** `routes.json` and `interactions/`, which every scenario's `operations` point into. The agent maintains these; the lock records their fingerprint so a retest can tell drift from regression.
+- **Runners:** replayable Playwright scripts in `runners/`.
+- **Barriers:** the notes in `barriers/`, which say what the locked suite cannot automate and how a person covers it.
+
+Before asking for the lock, check that each scenario has `operations` or a stated reason it has none (an API-only check, a barrier), and that runners were replayed at least once.
 
 ## Always the same report
 
