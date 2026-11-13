@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { inventoryGaps, loadRoutes } from './interactions.ts';
 import { readJson, safeId } from './store.ts';
-import { loadChart, saveChart } from './wayfinding.ts';
+import { loadChart, saveChart, withChartLock } from './wayfinding.ts';
 import { hasApproval, loadSuite, readRun } from './workspace.ts';
 import type { Chart, Charter, Config, Lock, PathMap, Scenario } from './models.ts';
 
@@ -93,6 +93,10 @@ export function completionGaps(root: string, chart: Chart, charter: Charter): st
 
 /** Close a charter only against its criterion; the gist is the single line the map keeps. */
 export function closeCharter(root: string, id: string, gist: string): string {
+  return withChartLock(root, () => closeLocked(root, id, gist));
+}
+
+function closeLocked(root: string, id: string, gist: string): string {
   const chart = loadChart(root);
   const charter = chart.charters.find(item => item.id === id);
   assert.ok(charter, `Unknown charter ${id}.`);

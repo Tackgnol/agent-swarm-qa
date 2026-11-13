@@ -175,3 +175,31 @@ test('a malformed chart is refused, long sections stay low-resolution, and an ol
     assert.ok(existsSync(join(f.root, 'routes.json')));
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });
+
+test('charting from a file and concurrent claims go through one lock and lose nothing', async () => {
+  const f = fixture();
+  try {
+    const file = join(f.project, 'addition.json');
+    const lines = loadChart(f.root).fog;
+    writeJson(file, {
+      charters: Array.from({ length: 6 }, (_, index) => ({ id: `side-${index}`, name: `Side task ${index}`, kind: 'task', mode: 'AFK', mission: 'Independent work.' })),
+      removeFog: [lines[0]], addFog: ['A new patch of fog.'],
+    });
+    assert.match(main(['chart-add', f.root, file]), /Charted 6 new charters/);
+    assert.match(main(['route-status', f.root, 'sign-up', 'excluded', 'Deferred by the user.']), /Sign up \(sign-up\) is now excluded/);
+    assert.throws(() => main(['route-status', f.root, 'sign-up', 'unreachable']), /record why/);
+    assert.throws(() => main(['route-status', f.root, 'nowhere', 'inventoried']), /Unknown route/);
+    assert.ok(!loadChart(f.root).fog.includes(lines[0]) && loadChart(f.root).fog.includes('A new patch of fog.'));
+    writeJson(file, { removeFog: ['Not a real fog line'] });
+    assert.throws(() => main(['chart-add', f.root, file]), /were not found/);
+    const { spawn } = await import('node:child_process');
+    const script = new URL('../scripts/qa.ts', import.meta.url).pathname;
+    const codes = await Promise.all(Array.from({ length: 6 }, (_, index) => new Promise<number>(resolve => {
+      spawn(process.execPath, [script, 'claim', f.root, `side-${index}`, `lane-${index}`], { stdio: 'ignore' }).on('close', code => resolve(code ?? 1));
+    })));
+    assert.deepEqual(codes, [0, 0, 0, 0, 0, 0]);
+    const held = loadChart(f.root).charters.filter(item => item.id.startsWith('side-')).map(item => item.claimedBy);
+    assert.deepEqual(held, ['lane-0', 'lane-1', 'lane-2', 'lane-3', 'lane-4', 'lane-5']);
+    assert.ok(!existsSync(join(f.root, 'charters.lock')));
+  } finally { rmSync(f.project, { recursive: true, force: true }); }
+});

@@ -5,15 +5,15 @@ import { closeCharter } from './closing.ts';
 import { interactionSummary } from './interactions.ts';
 import { writePlanningReport, writeReport } from './report.ts';
 import { exportGherkin } from './to-gherkin.ts';
-import { claim, release, renderMap, ruleOut, seedChart } from './wayfinding.ts';
+import { addToChart, claim, release, renderMap, ruleOut, seedChart, setRouteStatus } from './wayfinding.ts';
 import { missingCredentialKeys, preparePrivateEnv } from './with-qa-env.ts';
 import { approve, approveBatch, focusReviewPath, initialize, loadSuite, lockSuite, nextPathId, readJson, requiredEnvKeys, reviewPath, startRun } from './workspace.ts';
 import type { Config, Run } from './models.ts';
 
 const usage = `Usage: qa.ts <command> <qa-root> ...
-  Map:      map <qa-root> [all] | claim <qa-root> <charter> [claimant] | close <qa-root> <charter> <gist> | release <qa-root> <charter> | rule-out <qa-root> <charter> <reason> | chart <qa-root>
+  Map:      map <qa-root> [all] | claim <qa-root> <charter> [claimant] | close <qa-root> <charter> <gist> | release <qa-root> <charter> | rule-out <qa-root> <charter> <reason> | chart-add <qa-root> <file.json> | chart <qa-root>
   Setup:    init <project-root> <slug> | prepare-env | env-template | check-env <qa-root>
-  Learn:    interactions <qa-root> | next-path | next-path-id | focus-path <qa-root> <path-ID> <decision-ref> <reason>
+  Learn:    interactions <qa-root> | route-status <qa-root> <route> <pending|inventoried|unreachable|excluded> [reason] | next-path | next-path-id | focus-path <qa-root> <path-ID> <decision-ref> <reason>
   Approve:  approve <qa-root> <setup|path:ID|scenario-ID> <decision-ref> | approve-batch <qa-root> <decision-ref> <path-ID...> | check <qa-root>
   Run:      run <qa-root> <environment> <run-id> <first-run|retest> | report <qa-root> [run-id] | lock <qa-root> <run-id> <decision-ref>
   Export:   to-gherkin <qa-root> <export-id>`;
@@ -50,6 +50,14 @@ export function main(args: string[]): string {
     case 'rule-out': {
       if (!first || !second) { throw new Error('A charter and the reason it sits beyond the destination are required.'); }
       return ruleOut(root, first, second);
+    }
+    case 'chart-add': {
+      if (!first) { throw new Error('Name a JSON file holding { charters, addFog, removeFog, addOutOfScope }.'); }
+      return addToChart(root, first);
+    }
+    case 'route-status': {
+      if (!first || !second) { throw new Error('A route ID and its new status are required.'); }
+      return setRouteStatus(root, first, second, third);
     }
     case 'interactions': return interactionSummary(root);
     case 'approve': {

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { barrierIds } from './interactions.ts';
+import { barrierIds, loadRoutes } from './interactions.ts';
 import { readJson, safeId, writeJson } from './store.ts';
-import type { Chart, Charter, CharterKind, Lock } from './models.ts';
+import type { Chart, Charter, CharterKind, Lock, Route } from './models.ts';
 
 const kinds: CharterKind[] = ['setup', 'routes', 'inventory', 'intent', 'scenarios', 'run', 'lock', 'task'];
 
@@ -55,6 +55,35 @@ function validate(chart: Chart): Chart {
     visit(id, []);
   }
   return chart;
+}
+
+/** Serialize every change to charters.json, so parallel workers cannot drop each other's claims, closes or new charters. */
+export function withChartLock<T>(root: string, work: () => T): T {
+  const lock = join(root, 'charters.lock');
+  const deadline = Date.now() + 15_000;
+  for (;;) {
+    try {
+      mkdirSync(lock);
+      break;
+    } catch (error) {
+      assert.ok((error as NodeJS.ErrnoException).code === 'EEXIST', `Cannot lock the map: ${(error as Error).message}`);
+      let stale = false;
+      try {
+        stale = Date.now() - statSync(lock).mtimeMs > 60_000;
+      } catch { /* released between the two calls: retry */ }
+      if (stale) {
+        try { rmdirSync(lock); } catch { /* another process cleared it */ }
+        continue;
+      }
+      assert.ok(Date.now() < deadline, 'Another command is updating the map. Run the command again.');
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+    }
+  }
+  try {
+    return work();
+  } finally {
+    rmdirSync(lock);
+  }
 }
 
 export function loadChart(root: string): Chart {
@@ -125,6 +154,10 @@ function brief(charter: Charter): string {
 
 /** One claimant holds one charter at a time; the claim is what keeps parallel workers off it. */
 export function claim(root: string, id: string, who: string): string {
+  return withChartLock(root, () => claimLocked(root, id, who));
+}
+
+function claimLocked(root: string, id: string, who: string): string {
   const chart = loadChart(root);
   const charter = find(chart, id);
   assert.ok(who.trim(), 'Name the claimant: parent, or a worker lane ID.');
@@ -144,6 +177,10 @@ export function claim(root: string, id: string, who: string): string {
 
 /** Hand a charter back to the frontier, usually after charting the blocker that stopped it. */
 export function release(root: string, id: string): string {
+  return withChartLock(root, () => releaseLocked(root, id));
+}
+
+function releaseLocked(root: string, id: string): string {
   const chart = loadChart(root);
   const charter = find(chart, id);
   assert.ok(charter.status === 'open', `${charter.name} is already ${charter.status}.`);
@@ -154,6 +191,10 @@ export function release(root: string, id: string): string {
 
 /** Rule a charter beyond the destination. It leaves the frontier for good and unblocks nothing it promised. */
 export function ruleOut(root: string, id: string, reason: string): string {
+  return withChartLock(root, () => ruleOutLocked(root, id, reason));
+}
+
+function ruleOutLocked(root: string, id: string, reason: string): string {
   const chart = loadChart(root);
   const charter = find(chart, id);
   assert.ok(charter.status === 'open', `${charter.name} is already ${charter.status}.`);
@@ -207,4 +248,39 @@ export function renderMap(root: string, all = false): string {
   ].join('\n');
   writeFileSync(join(root, 'map.md'), text, 'utf8');
   return text;
+}
+
+/** Merge new charters and fog changes from a file under the lock, so the parent can chart while workers close. */
+export function addToChart(root: string, file: string): string {
+  const addition = readJson<{ charters?: Charter[]; addFog?: string[]; removeFog?: string[]; addOutOfScope?: string[] }>(file);
+  return withChartLock(root, () => {
+    const chart = loadChart(root);
+    const charters = addition.charters ?? [];
+    for (const charter of charters) {
+      chart.charters.push({ ...charter, status: 'open', claimedBy: null, gist: '', blockedBy: charter.blockedBy ?? [] });
+    }
+    const missing = (addition.removeFog ?? []).filter(line => !chart.fog.includes(line));
+    assert.ok(missing.length === 0, `Fog lines to remove were not found (copy them exactly): ${missing.join(' | ')}`);
+    chart.fog = [...chart.fog.filter(line => !(addition.removeFog ?? []).includes(line)), ...(addition.addFog ?? [])];
+    chart.outOfScope.push(...(addition.addOutOfScope ?? []));
+    saveChart(root, chart);
+    return `Charted ${charters.length} new ${charters.length === 1 ? 'charter' : 'charters'}: ${charters.map(charter => charter.name).join(', ') || 'none'}. Fog: +${addition.addFog?.length ?? 0} −${addition.removeFog?.length ?? 0}.`;
+  });
+}
+
+/** Record one route's outcome under the lock, so parallel inventories never rewrite each other's routes.json. */
+export function setRouteStatus(root: string, id: string, status: string, reason = ''): string {
+  return withChartLock(root, () => {
+    const inventory = loadRoutes(root);
+    const route = inventory.routes.find(entry => entry.id === id);
+    assert.ok(route, `Unknown route ${id}.`);
+    assert.ok(['pending', 'inventoried', 'unreachable', 'excluded'].includes(status), 'Use pending, inventoried, unreachable or excluded.');
+    assert.ok(reason.trim() || (status !== 'unreachable' && status !== 'excluded'), `${id} is ${status}: record why.`);
+    route.status = status as Route['status'];
+    if (reason.trim()) {
+      route.reason = reason.trim();
+    }
+    writeJson(join(root, 'routes.json'), inventory);
+    return `${route.title} (${id}) is now ${status}.`;
+  });
 }
