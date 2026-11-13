@@ -5,7 +5,10 @@ import { fingerprint, readJson, safeId } from './store.ts';
 import type { Interaction, PathMap, Route, RouteInteractions, RouteInventory } from './models.ts';
 
 const routeStatuses = ['pending', 'inventoried', 'unreachable', 'excluded'];
-const interactionStatuses = ['pending', 'operated', 'skipped', 'barrier'];
+const interactionStatuses = ['pending', 'operated', 'deferred', 'skipped', 'barrier'];
+/** Playwright verbs for elements, plus page-level actions that have no element of their own. */
+const actions = ['click', 'dblclick', 'fill', 'select', 'check', 'uncheck', 'press', 'hover', 'drag', 'upload', 'focus', 'scroll', 'navigate', 'reload', 'back'];
+const pageActions = ['navigate', 'reload', 'back'];
 const playwrightLocator = /^(getBy(Role|Text|Label|Placeholder|AltText|Title|TestId)|locator|frameLocator)\(/;
 
 /** Route inventory; a workspace that predates it reads as empty. */
@@ -64,7 +67,8 @@ export function loadRouteInteractions(root: string, routeId: string): RouteInter
     assert.ok(sections.has(item.section), `${at}: unknown section.`);
     assert.ok(!addresses.has(at), `Duplicate interaction ${at}.`);
     addresses.add(at);
-    assert.ok(typeof item.locator === 'string' && playwrightLocator.test(item.locator), `${at}: store a Playwright locator (getByRole, getByLabel, getByTestId, locator, ...).`);
+    assert.ok(actions.includes(item.action), `${at}: use one of the actions ${actions.join(', ')}.`);
+    assert.ok(typeof item.locator === 'string' && (playwrightLocator.test(item.locator) || (pageActions.includes(item.action) && item.locator === '')), `${at}: store a Playwright locator (getByRole, getByLabel, getByTestId, locator, ...); only navigate, reload and back may leave it empty.`);
     assert.ok(interactionStatuses.includes(item.status), `${at}: unknown status.`);
     if (item.status !== 'pending') {
       assert.ok(item.effect?.trim(), `${at}: record the observed effect, or the reason it was not operated.`);
@@ -99,7 +103,7 @@ export function resolveOperation(interactions: Map<string, RouteInteractions>, o
   assert.ok(route && section && element && action && rest.length === 0, `${operation}: an operation is route/section/element/action.`);
   const found = interactions.get(route)?.interactions.find(item => item.section === section && item.element === element && item.action === action);
   assert.ok(found, `${operation}: no such interaction. Inventory the route, or correct the address.`);
-  assert.ok(found.status === 'operated', `${operation}: only operated interactions can drive a scenario (this one is ${found.status}).`);
+  assert.ok(found.status === 'operated' || found.status === 'deferred', `${operation}: only operated or deferred interactions can drive a scenario (this one is ${found.status}).`);
   return found;
 }
 
@@ -131,24 +135,42 @@ export function interactionSummary(root: string): string {
   const interactions = loadInteractions(root);
   const mapFile = join(root, 'map.json');
   const linked = new Set(existsSync(mapFile) ? readJson<PathMap>(mapFile).paths.flatMap(path => path.routes ?? []) : []);
-  const totals = { operated: 0, skipped: 0, barrier: 0, pending: 0 };
+  const totals = { operated: 0, deferred: 0, skipped: 0, barrier: 0, pending: 0 };
   const lines = routes.routes.map(route => {
-    const counts = { operated: 0, skipped: 0, barrier: 0, pending: 0 };
+    const counts = { operated: 0, deferred: 0, skipped: 0, barrier: 0, pending: 0 };
     for (const item of interactions.get(route.id)?.interactions ?? []) {
       counts[item.status] += 1;
       totals[item.status] += 1;
     }
     const detail = route.status === 'inventoried' || interactions.has(route.id)
-      ? `${counts.operated} operated, ${counts.skipped} skipped, ${counts.barrier} behind barriers, ${counts.pending} pending`
+      ? `${counts.operated} operated, ${counts.deferred} deferred, ${counts.skipped} skipped, ${counts.barrier} behind barriers, ${counts.pending} pending`
       : route.reason || 'not inventoried yet';
-    return `- ${route.title} (${route.id}, ${route.pattern}) · ${route.status} · ${detail}`;
+    const waiting = route.pendingIdentities?.length ? ` · still to inventory as ${route.pendingIdentities.join(', ')}` : '';
+    return `- ${route.title} (${route.id}, ${route.pattern}) · ${route.status} · ${detail}${waiting}`;
   });
   const unlinked = routes.routes.filter(route => route.status === 'inventoried' && !linked.has(route.id)).map(route => route.title);
   return [
     `Routes: ${routes.routes.length} (${routes.routes.filter(route => route.status === 'pending').length} pending).`,
-    `Interactions: ${totals.operated} operated, ${totals.skipped} skipped, ${totals.barrier} behind barriers, ${totals.pending} pending.`,
+    `Interactions: ${totals.operated} operated, ${totals.deferred} deferred, ${totals.skipped} skipped, ${totals.barrier} behind barriers, ${totals.pending} pending.`,
     `Barrier notes: ${barrierIds(root).join(', ') || 'none'}.`,
     `Inventoried routes not yet linked to a capability: ${unlinked.join(', ') || 'none'}.`,
     '', ...lines,
   ].join('\n');
+}
+
+/** Every address of one route with its status, grouped by section: what a scenario writer or run worker reads instead of the raw file. */
+export function routeAddresses(root: string, routeId: string): string {
+  const route = loadRoutes(root).routes.find(entry => entry.id === routeId);
+  assert.ok(route, `Unknown route ${routeId}.`);
+  const entry = loadRouteInteractions(root, routeId);
+  assert.ok(entry, `${route.title} has no interactions file yet.`);
+  const lines = [`${route.title} (${routeId}, ${route.pattern}) · ${route.status}`];
+  for (const section of entry.sections) {
+    const items = entry.interactions.filter(item => item.section === section.id);
+    lines.push('', `## ${section.title} (${section.id}) · ${section.locator || 'whole page'}`);
+    for (const item of items) {
+      lines.push(`- ${address(routeId, item)} · ${item.status} · ${item.locator || '(page)'} · ${item.effect.split('\n')[0].slice(0, 140)}`);
+    }
+  }
+  return lines.join('\n');
 }

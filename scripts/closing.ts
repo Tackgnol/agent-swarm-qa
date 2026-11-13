@@ -3,7 +3,8 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { inventoryGaps, loadRoutes } from './interactions.ts';
 import { readJson, safeId } from './store.ts';
-import { loadChart, saveChart, withChartLock } from './wayfinding.ts';
+import { loadLedger } from './ledger.ts';
+import { guide, loadChart, saveChart, withChartLock } from './wayfinding.ts';
 import { hasApproval, loadSuite, readRun } from './workspace.ts';
 import type { Chart, Charter, Config, Lock, PathMap, Scenario } from './models.ts';
 
@@ -45,6 +46,7 @@ export function completionGaps(root: string, chart: Chart, charter: Charter): st
       return [
         ...(chart.destination.trim() ? [] : ['Name the destination in charters.json.']),
         ...(hasApproval(config, config.setupApproval) ? [] : ['Setup needs the user\'s current confirmation (qa.ts approve <qa-root> setup <decision-ref>).']),
+        ...(config.mutationPolicy === 'owned-fixtures' && loadLedger(root).limit === null ? ['Writes are allowed, so agree a write budget with the user and record it (qa.ts budget <qa-root> <limit> "<unit>").'] : []),
       ];
     }
     case 'routes': {
@@ -106,9 +108,13 @@ function closeLocked(root: string, id: string, gist: string): string {
   assert.ok(waiting.length === 0, `${charter.name} still waits on: ${waiting.join(', ')}.`);
   const gaps = completionGaps(root, chart, charter);
   assert.ok(gaps.length === 0, `${charter.name} is not done:\n- ${gaps.join('\n- ')}`);
+  const holder = charter.claimedBy;
   charter.status = 'closed';
   charter.claimedBy = null;
   charter.gist = gist.trim();
   saveChart(root, chart);
-  return `Closed ${charter.name}. Graduate what this made specifiable into charters, clear the fog lines they replace, then run qa.ts map <qa-root>.`;
+  const checked = `Closed ${charter.name}. Checked: ${guide(charter).doneWhen}`;
+  return holder && holder !== 'parent'
+    ? `${checked}\nWorker ${holder}: take your next assigned charter, or report to the parent.`
+    : `${checked}\nParent: chart what this made specifiable (qa.ts chart-add <qa-root> <file> with { charters, addFog, removeFog }), then qa.ts map <qa-root>.`;
 }

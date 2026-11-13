@@ -3,12 +3,13 @@
   "route": "draft-editor",
   "capturedAt": "2026-01-01T00:00:00.000Z",
   "sections": [
-    { "id": "header", "title": "Editor header", "locator": "getByRole('banner')" },
-    { "id": "danger-zone", "title": "Danger zone", "locator": "getByRole('region', { name: 'Danger zone' })" }
+    {"id": "header", "title": "Editor header", "locator": "getByRole('banner')"},
+    {"id": "danger-zone", "title": "Danger zone", "locator": "getByRole('region', { name: 'Danger zone' })"}
   ],
   "interactions": [
-    { "section": "header", "element": "title", "action": "fill", "role": "textbox", "locator": "getByLabel('Title')", "identities": ["owner"], "status": "operated", "effect": "Autosave: PUT /api/drafts/:id returns 200, then the status text reads 'Saved'." },
-    { "section": "header", "element": "share", "action": "click", "role": "button", "locator": "getByRole('button', { name: 'Share' })", "identities": ["owner"], "status": "operated", "effect": "Opens the 'Share draft' dialog; no request is sent." },
-    { "section": "danger-zone", "element": "delete-draft", "action": "click", "role": "button", "locator": "getByRole('button', { name: 'Delete draft' })", "identities": ["owner"], "status": "skipped", "effect": "Irreversible delete: operate only on a run-owned draft inside an approved scenario." }
+    {"section": "header", "element": "title", "action": "fill", "role": "textbox", "locator": "getByLabel('Title')", "identities": ["owner"], "status": "operated", "effect": "Autosave: PUT /api/drafts/:id returns 200, then the status text reads 'Saved'."},
+    {"section": "header", "element": "share", "action": "click", "role": "button", "locator": "getByRole('button', { name: 'Share' })", "identities": ["owner"], "status": "operated", "effect": "Opens the 'Share draft' dialog; no request is sent."},
+    {"section": "danger-zone", "element": "delete-draft", "action": "click", "role": "button", "locator": "getByRole('button', { name: 'Delete draft' })", "identities": ["owner"], "status": "deferred", "effect": "Irreversible delete, so only a scenario that owns a run-owned draft operates it. Expected: DELETE /api/drafts/:id returns 204, then the drafts list opens."},
+    {"section": "header", "element": "help-centre", "action": "click", "role": "link", "locator": "getByRole('link', { name: 'Help centre' })", "identities": ["owner"], "status": "skipped", "effect": "Leaves the app for help.example.test, which this suite does not test; the href is checked instead."}
   ]
 }

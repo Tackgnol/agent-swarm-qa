@@ -272,6 +272,13 @@ export function loadSuite(root: string): Suite {
   return { config, map, scenarios, hash: suiteFingerprint(config, map, scenarios) };
 }
 
+/** Update the checkpoint's position fields and keep everything else the agent stored there (debt, questions, jobs). */
+function mergeCheckpoint(root: string, changes: Record<string, unknown>): void {
+  const file = join(root, 'checkpoint.json');
+  const current = existsSync(file) ? readJson<Record<string, unknown>>(file) : {};
+  writeJson(file, { ...current, ...changes });
+}
+
 export function startRun(root: string, environment: string, id: string, phase: Run['phase']): string {
   safeId(id);
   assert.ok(['first-run', 'retest'].includes(phase), 'Use first-run or retest.');
@@ -306,7 +313,7 @@ export function startRun(root: string, environment: string, id: string, phase: R
   };
   writeJson(join(path, 'run.json'), run);
   writeJson(join(path, 'results.json'), []);
-  writeJson(join(root, 'checkpoint.json'), { phase, runId: id, nextAction: 'Record observed deployment identity; execute approved scenarios.' });
+  mergeCheckpoint(root, { phase, runId: id, nextAction: 'Record observed deployment identity; execute approved scenarios.' });
   return path;
 }
 
@@ -328,7 +335,7 @@ export function readRun(root: string, id: string): { directory: string; suite: S
     assert.ok(Array.isArray(result.screenshots) && Array.isArray(result.evidence), 'Evidence and screenshots must be arrays.');
     assert.ok(!Number.isNaN(Date.parse(result.at)), 'Record an actual observation timestamp.');
     if (result.resolution) {
-      assert.ok(['harness-corrected', 'expected-behavior'].includes(result.resolution.kind) && result.resolution.reason.trim(), 'Explain an allowed resolution without erasing the original attempt.');
+      assert.ok(['harness-corrected', 'check-corrected', 'expected-behavior'].includes(result.resolution.kind) && result.resolution.reason.trim(), 'Explain an allowed resolution without erasing the original attempt.');
     }
     const key = `${result.scenarioId}:${result.attempt}`;
     assert.ok(!attempts.has(key), 'Duplicate scenario attempt.');
@@ -351,5 +358,5 @@ export function lockSuite(root: string, id: string, decisionRef: string): void {
   }
   const lock: Lock = { version: 1, suiteHash: suite.hash, sourceRun: id, decisionRef, at: new Date().toISOString(), tiers: counts, interactionsHash: interactionsHash(root) };
   writeJson(join(root, 'locked.json'), lock);
-  writeJson(join(root, 'checkpoint.json'), { phase: 'locked', runId: id, nextAction: 'Generate the standard report; future runs use the locked scenarios.' });
+  mergeCheckpoint(root, { phase: 'locked', runId: id, nextAction: 'Generate the standard report; future runs use the locked scenarios.' });
 }

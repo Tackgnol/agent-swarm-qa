@@ -206,6 +206,17 @@ function ruleOutLocked(root: string, id: string, reason: string): string {
   return `Ruled out of scope: ${charter.name}.`;
 }
 
+/** One line on the write budget and leftover test data; the ledger module owns the file. */
+function writesLine(root: string): string {
+  const file = join(root, 'writes.json');
+  if (!existsSync(file)) {
+    return 'No writes recorded and no budget set.';
+  }
+  const ledger = readJson<{ limit: number | null; unit: string; writes: unknown[]; fixtures: { cleanup: string }[] }>(file);
+  const left = ledger.fixtures.filter(fixture => fixture.cleanup !== 'done').length;
+  return `${ledger.limit === null ? `${ledger.writes.length} writes recorded, no budget set` : `${ledger.writes.length} of ${ledger.limit} ${ledger.unit} writes spent`}; ${left} test fixtures left on the target.`;
+}
+
 function capped(lines: string[], all: boolean, empty: string): string[] {
   if (lines.length === 0) {
     return [empty];
@@ -227,20 +238,30 @@ export function renderMap(root: string, all = false): string {
   const tiers = lock?.tiers ? Object.entries(lock.tiers).filter(([, count]) => count > 0).map(([tier, count]) => `${count} ${tier}`).join(', ') : 'tiers not recorded';
   const barriers = barrierIds(root);
   const next = inHand[0] ?? takeable[0];
+  const afk = takeable.find(charter => charter.mode === 'AFK');
+  const hitl = takeable.find(charter => charter.mode === 'HITL');
+  const afkCount = takeable.filter(charter => charter.mode === 'AFK').length;
+  const hitlCount = takeable.length - afkCount;
   const text = [
     '# QA map', '',
     '## Destination', '', chart.destination.trim() || 'Not named yet. Naming it is the first act of the setup charter.', '',
     `Locked so far: ${lock ? `${tiers} (source run ${lock.sourceRun})` : 'nothing'}.`, '',
     ...(chart.notes.length ? ['## Notes', '', ...chart.notes.map(line => `- ${line}`), ''] : []),
     '## In hand', '', ...capped(inHand.map(charter => `- **${charter.name}** (\`${charter.id}\`, ${charter.mode}, held by ${charter.claimedBy})`), all, 'Nothing claimed.'), '',
-    '## Frontier', '', ...capped(takeable.map(charter => `- **${charter.name}** (\`${charter.id}\`, ${charter.mode}): ${charter.mission}`), all, 'Empty.'), '',
+    '## Frontier: needs the user (HITL)', '', ...capped(takeable.filter(charter => charter.mode === 'HITL').map(charter => `- **${charter.name}** (\`${charter.id}\`): ${charter.mission}`), all, 'Nothing waits on the user.'), '',
+    '## Frontier: agent work (AFK)', '', ...capped(takeable.filter(charter => charter.mode === 'AFK').map(charter => `- **${charter.name}** (\`${charter.id}\`): ${charter.mission}`), all, 'No agent work is takeable.'), '',
     '## Blocked', '', ...capped(blocked.map(charter => `- **${charter.name}** waits on ${charter.blockedBy.filter(id => find(chart, id).status === 'open').map(name).join(', ')}`), all, 'Nothing blocked.'), '',
     '## Done so far', '', ...capped(chart.charters.filter(charter => charter.status === 'closed').map(charter => `- **${charter.name}**: ${charter.gist}`), all, 'Nothing closed yet.'), '',
     '## Fog', '', ...capped(chart.fog.map(line => `- ${line}`), true, 'No fog: everything toward the destination is chartered.'), '',
     '## Out of scope', '', ...capped([...chart.charters.filter(charter => charter.status === 'out-of-scope').map(charter => `- **${charter.name}**: ${charter.gist}`), ...chart.outOfScope.map(line => `- ${line}`)], all, 'Nothing ruled out.'), '',
     '## Barriers', '', barriers.length ? `${barriers.length} noted in barriers/: ${barriers.join(', ')}.` : 'None noted.', '',
+    '## Writes on the target', '', writesLine(root), '',
     '## Next', '', next
-      ? `${inHand[0] ? 'Finish' : 'Claim'} **${next.name}** (\`${next.id}\`).`
+      ? [
+        ...inHand.map(charter => `Finish **${charter.name}** (\`${charter.id}\`, held by ${charter.claimedBy}).`),
+        ...(afk ? [`Agent work: claim or dispatch **${afk.name}** (\`${afk.id}\`)${afkCount > 1 ? `, and ${afkCount - 1} more AFK` : ''}.`] : []),
+        ...(hitl ? [`With the user: **${hitl.name}** (\`${hitl.id}\`)${hitlCount > 1 ? `, and ${hitlCount - 1} more HITL` : ''}.`] : []),
+      ].join('\n')
       : open.length ? 'Every open charter is blocked: chart what unblocks them, or ask the user.'
         : chart.fog.length ? 'No open charters, but fog remains: graduate what is now specifiable into charters.'
           : 'No open charters and no fog: the destination is reached. Report to the user.',
@@ -259,9 +280,13 @@ export function addToChart(root: string, file: string): string {
     for (const charter of charters) {
       chart.charters.push({ ...charter, status: 'open', claimedBy: null, gist: '', blockedBy: charter.blockedBy ?? [] });
     }
-    const missing = (addition.removeFog ?? []).filter(line => !chart.fog.includes(line));
-    assert.ok(missing.length === 0, `Fog lines to remove were not found (copy them exactly): ${missing.join(' | ')}`);
-    chart.fog = [...chart.fog.filter(line => !(addition.removeFog ?? []).includes(line)), ...(addition.addFog ?? [])];
+    // A fog line is named by its full text or by any opening words that match exactly one line.
+    const removed = (addition.removeFog ?? []).map(text => {
+      const matches = chart.fog.filter(line => line === text || line.startsWith(text));
+      assert.ok(matches.length === 1, `Fog line to remove ${matches.length ? 'matches several lines' : 'was not found'}: "${text}". Name it by its opening words, enough to be unique.`);
+      return matches[0];
+    });
+    chart.fog = [...chart.fog.filter(line => !removed.includes(line)), ...(addition.addFog ?? [])];
     chart.outOfScope.push(...(addition.addOutOfScope ?? []));
     saveChart(root, chart);
     return `Charted ${charters.length} new ${charters.length === 1 ? 'charter' : 'charters'}: ${charters.map(charter => charter.name).join(', ') || 'none'}. Fog: +${addition.addFog?.length ?? 0} −${addition.removeFog?.length ?? 0}.`;
@@ -282,5 +307,18 @@ export function setRouteStatus(root: string, id: string, status: string, reason 
     }
     writeJson(join(root, 'routes.json'), inventory);
     return `${route.title} (${id}) is now ${status}.`;
+  });
+}
+
+/** Correct the one-line gist of a closed charter; the outcome itself is not reopened. */
+export function amendGist(root: string, id: string, gist: string): string {
+  return withChartLock(root, () => {
+    const chart = loadChart(root);
+    const charter = find(chart, id);
+    assert.ok(charter.status !== 'open', `${charter.name} is still open: its gist is written when it closes.`);
+    assert.ok(gist.trim() && !gist.includes('\n'), 'Record a one-line gist.');
+    charter.gist = gist.trim();
+    saveChart(root, chart);
+    return `Gist of ${charter.name} amended.`;
   });
 }

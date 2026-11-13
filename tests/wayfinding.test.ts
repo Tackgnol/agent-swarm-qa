@@ -29,7 +29,9 @@ test('init charts the opening: setup on the frontier, route finding blocked, lat
     const map = main(['map', f.root]);
     assert.match(map, /Not named yet/);
     assert.match(map, /\*\*Find every route\*\* waits on Set up the QA effort/);
-    assert.match(map, /Claim \*\*Set up the QA effort\*\*/);
+    assert.match(map, /With the user: \*\*Set up the QA effort\*\*/);
+    assert.match(map, /## Frontier: agent work \(AFK\)\n\nNo agent work is takeable\./);
+    assert.match(map, /0 of 20 draft writes spent; 0 test fixtures left/);
     assert.equal(readFileSync(join(f.root, 'map.md'), 'utf8'), map);
     assert.throws(() => main(['chart', f.root]), /already exists/);
   } finally { rmSync(f.project, { recursive: true, force: true }); }
@@ -62,7 +64,7 @@ test('setup closes only with a named destination and a current setup confirmatio
     assert.match(main(['close', f.root, 'setup', 'Canary with owner and member; owned fixtures only.']), /Closed Set up the QA effort/);
     const map = renderMap(f.root);
     assert.match(map, /\*\*Set up the QA effort\*\*: Canary with owner and member/);
-    assert.match(map, /Claim \*\*Find every route\*\*/);
+    assert.match(map, /Agent work: claim or dispatch \*\*Find every route\*\*/);
     assert.throws(() => closeCharter(f.root, 'setup', 'again'), /already closed/);
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });
@@ -97,9 +99,10 @@ test('an inventory closes only when every element was operated or classified, an
     writeJson(file, entry);
     assert.throws(() => closeCharter(f.root, 'inventory-draft-editor', 'Done.'), /existing barrier note/);
     writeFileSync(join(f.root, 'barriers', 'export-bot-check.md'), '# Bot check on export\n');
-    closeCharter(f.root, 'inventory-draft-editor', '4 interactions: 2 operated, 1 skipped, 1 behind the export bot check.');
+    assert.match(main(['close', f.root, 'inventory-draft-editor', '5 interactions: 2 operated, 1 deferred, 1 skipped, 1 behind the export bot check.']), /Checked: The route is inventoried[\s\S]*Parent: chart what this made specifiable/);
     assert.match(renderMap(f.root), /1 noted in barriers\/: export-bot-check/);
-    assert.match(main(['interactions', f.root]), /Interactions: 2 operated, 1 skipped, 1 behind barriers, 0 pending/);
+    assert.match(main(['interactions', f.root]), /Interactions: 2 operated, 1 deferred, 1 skipped, 1 behind barriers, 0 pending/);
+    assert.match(main(['interactions', f.root, 'draft-editor']), /## Editor header \(header\)[\s\S]*- draft-editor\/header\/title\/fill · operated · getByLabel\('Title'\)/);
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });
 
@@ -167,11 +170,11 @@ test('a malformed chart is refused, long sections stay low-resolution, and an ol
         chart.charters.push(charter({ id: `inventory-r${index}`, name: `Inventory route ${index}`, kind: 'inventory', subjects: [`r${index}`] }));
       }
     });
-    assert.match(renderMap(f.root), /…and 5 more/);
+    assert.match(renderMap(f.root), /…and 4 more/);
     assert.match(main(['map', f.root, 'all']), /Inventory route 12/);
     rmSync(join(f.root, 'charters.json'));
     assert.throws(() => main(['map', f.root]), /no map yet/);
-    assert.match(main(['chart', f.root]), /Claim \*\*Set up the QA effort\*\*/);
+    assert.match(main(['chart', f.root]), /With the user: \*\*Set up the QA effort\*\*/);
     assert.ok(existsSync(join(f.root, 'routes.json')));
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });
@@ -191,7 +194,10 @@ test('charting from a file and concurrent claims go through one lock and lose no
     assert.throws(() => main(['route-status', f.root, 'nowhere', 'inventoried']), /Unknown route/);
     assert.ok(!loadChart(f.root).fog.includes(lines[0]) && loadChart(f.root).fog.includes('A new patch of fog.'));
     writeJson(file, { removeFog: ['Not a real fog line'] });
-    assert.throws(() => main(['chart-add', f.root, file]), /were not found/);
+    assert.throws(() => main(['chart-add', f.root, file]), /was not found/);
+    writeJson(file, { removeFog: ['Happy-path scenarios'] });
+    assert.match(main(['chart-add', f.root, file]), /Fog: \+0 −1/);
+    assert.ok(!loadChart(f.root).fog.some(line => line.startsWith('Happy-path scenarios')));
     const { spawn } = await import('node:child_process');
     const script = new URL('../scripts/qa.ts', import.meta.url).pathname;
     const codes = await Promise.all(Array.from({ length: 6 }, (_, index) => new Promise<number>(resolve => {

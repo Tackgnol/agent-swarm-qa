@@ -2,18 +2,23 @@ import { writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { closeCharter } from './closing.ts';
-import { interactionSummary } from './interactions.ts';
+import { interactionSummary, routeAddresses } from './interactions.ts';
+import { budgetLine, loadLedger, recordFixture, setBudget, spend } from './ledger.ts';
+import { lintScenarios, wireScenarios } from './lint.ts';
 import { writePlanningReport, writeReport } from './report.ts';
 import { exportGherkin } from './to-gherkin.ts';
-import { addToChart, claim, release, renderMap, ruleOut, seedChart, setRouteStatus } from './wayfinding.ts';
+import { addToChart, amendGist, claim, release, renderMap, ruleOut, seedChart, setRouteStatus } from './wayfinding.ts';
 import { missingCredentialKeys, preparePrivateEnv } from './with-qa-env.ts';
 import { approve, approveBatch, focusReviewPath, initialize, loadSuite, lockSuite, nextPathId, readJson, requiredEnvKeys, reviewPath, startRun } from './workspace.ts';
 import type { Config, Run } from './models.ts';
 
 const usage = `Usage: qa.ts <command> <qa-root> ...
-  Map:      map <qa-root> [all] | claim <qa-root> <charter> [claimant] | close <qa-root> <charter> <gist> | release <qa-root> <charter> | rule-out <qa-root> <charter> <reason> | chart-add <qa-root> <file.json> | chart <qa-root>
-  Setup:    init <project-root> <slug> | prepare-env | env-template | check-env <qa-root>
-  Learn:    interactions <qa-root> | route-status <qa-root> <route> <pending|inventoried|unreachable|excluded> [reason] | next-path | next-path-id | focus-path <qa-root> <path-ID> <decision-ref> <reason>
+  Map:      map <qa-root> [all] | claim <qa-root> <charter> [claimant] | close <qa-root> <charter> <gist> | gist <qa-root> <charter> <gist>
+            release <qa-root> <charter> | rule-out <qa-root> <charter> <reason> | chart-add <qa-root> <file.json> | chart <qa-root>
+  Setup:    init <project-root> <slug> | prepare-env | env-template | check-env <qa-root> | budget <qa-root> [<limit> <unit>]
+  Writes:   spend <qa-root> <who> <what> | fixture <qa-root> <id> <owner> <note> [pending|done|handed-off]
+  Learn:    interactions <qa-root> [route] | route-status <qa-root> <route> <pending|inventoried|unreachable|excluded> [reason]
+            lint-scenarios <qa-root> [scenario-ID...] | wire-scenarios <qa-root> | next-path | next-path-id | focus-path <qa-root> <path-ID> <decision-ref> <reason>
   Approve:  approve <qa-root> <setup|path:ID|scenario-ID> <decision-ref> | approve-batch <qa-root> <decision-ref> <path-ID...> | check <qa-root>
   Run:      run <qa-root> <environment> <run-id> <first-run|retest> | report <qa-root> [run-id] | lock <qa-root> <run-id> <decision-ref>
   Export:   to-gherkin <qa-root> <export-id>`;
@@ -59,7 +64,30 @@ export function main(args: string[]): string {
       if (!first || !second) { throw new Error('A route ID and its new status are required.'); }
       return setRouteStatus(root, first, second, third);
     }
-    case 'interactions': return interactionSummary(root);
+    case 'interactions': return first ? routeAddresses(root, first) : interactionSummary(root);
+    case 'gist': {
+      if (!first || !second) { throw new Error('A closed charter and its corrected one-line gist are required.'); }
+      return amendGist(root, first, second);
+    }
+    case 'budget': {
+      if (!first) { return budgetLine(loadLedger(root)); }
+      if (!second) { throw new Error('Give the limit and what one write is: budget <qa-root> 20 "guest character".'); }
+      return setBudget(root, Number(first), second);
+    }
+    case 'spend': {
+      if (!first || !second) { throw new Error('Say who is writing and what: spend <qa-root> lane-3 "QA-004 creates a guest character".'); }
+      return spend(root, first, second);
+    }
+    case 'fixture': {
+      if (!first || !second || !third) { throw new Error('A fixture needs an ID, an owner and a note: fixture <qa-root> <id> <owner> <note> [pending|done|handed-off].'); }
+      return recordFixture(root, first, second, third, (args[5] ?? 'pending') as 'pending');
+    }
+    case 'lint-scenarios': {
+      const result = lintScenarios(root, args.slice(2));
+      if (result.problems) { throw new Error(result.text); }
+      return result.text;
+    }
+    case 'wire-scenarios': return wireScenarios(root);
     case 'approve': {
       if (!first || !second) { throw new Error('Subject and actual user decision reference are required.'); }
       approve(root, first, second);

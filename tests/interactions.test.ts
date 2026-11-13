@@ -28,7 +28,8 @@ test('interactions are addressed route/section/element/action and stored as Play
     assert.equal(resolveOperation(interactions, 'draft-editor/header/title/fill').locator, "getByLabel('Title')");
     assert.throws(() => resolveOperation(interactions, 'draft-editor/header/title'), /route\/section\/element\/action/);
     assert.throws(() => resolveOperation(interactions, 'draft-editor/header/missing/click'), /no such interaction/);
-    assert.throws(() => resolveOperation(interactions, 'draft-editor/danger-zone/delete-draft/click'), /only operated interactions/);
+    assert.equal(resolveOperation(interactions, 'draft-editor/danger-zone/delete-draft/click').status, 'deferred');
+    assert.throws(() => resolveOperation(interactions, 'draft-editor/header/help-centre/click'), /only operated or deferred interactions/);
     const file = join(f.root, 'interactions', 'draft-editor.json');
     const entry = readJson<RouteInteractions>(file);
     const broken = structuredClone(entry);
@@ -81,7 +82,10 @@ test('operating knowledge is agent-owned: changing it keeps the approval but an 
     assert.ok(startRun(f.root, 'canary', 'relinked', 'first-run'));
     scenario.operations = ['draft-editor/danger-zone/delete-draft/click'];
     writeJson(file, scenario);
-    assert.throws(() => startRun(f.root, 'canary', 'skipped-operation', 'first-run'), /only operated interactions/);
+    assert.ok(startRun(f.root, 'canary', 'deferred-operation', 'first-run'));
+    scenario.operations = ['draft-editor/header/help-centre/click'];
+    writeJson(file, scenario);
+    assert.throws(() => startRun(f.root, 'canary', 'skipped-operation', 'first-run'), /only operated or deferred interactions/);
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });
 

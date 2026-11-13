@@ -2,6 +2,7 @@ import { mkdtempSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { setBudget } from '../scripts/ledger.ts';
 import { approve, initialize, startRun } from '../scripts/workspace.ts';
 
 export const repo = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -18,6 +19,7 @@ export function fixture(): { project: string; root: string; run: string } {
   for (const subject of ['setup', 'path:PATH-001', 'QA-001']) {
     approve(root, subject, 'offline-test-fixture');
   }
+  setBudget(root, 20, 'draft');
   const run = startRun(root, 'canary', 'first', 'first-run');
   return { project, root, run };
 }

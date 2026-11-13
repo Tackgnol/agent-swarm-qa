@@ -60,6 +60,8 @@ export type Route = {
   /** Identity aliases that can reach it. */
   identities: string[];
   status: 'pending' | 'inventoried' | 'unreachable' | 'excluded'; reason: string;
+  /** Identities that reach the route but could not be inventoried yet (no account, no room). */
+  pendingIdentities?: string[];
 };
 export type RouteInventory = { version: 1; routes: Route[] };
 export type Interaction = {
@@ -67,8 +69,12 @@ export type Interaction = {
   /** Playwright locator expression, scoped inside its section's locator. Never contains private values. */
   locator: string;
   identities?: string[];
-  status: 'pending' | 'operated' | 'skipped' | 'barrier';
-  /** Observed effect when operated; the reason when skipped or behind a barrier. */
+  /**
+   * operated: performed once, effect observed. deferred: operating it writes data, so only a scenario that owns the fixture performs it.
+   * skipped: never operated by this suite (outbound, irreversible, external). barrier: automation cannot perform it.
+   */
+  status: 'pending' | 'operated' | 'deferred' | 'skipped' | 'barrier';
+  /** Observed effect when operated; the expected effect and condition when deferred; the reason when skipped or behind a barrier. */
   effect: string;
   /** Barrier note ID (barriers/<id>.md) when status is barrier. */
   barrier?: string;
@@ -98,7 +104,12 @@ export type Result = {
   browser: string; viewport: string; locale: string; boundary: string;
   screenshots: { path: string; caption: string; inspected: boolean }[];
   evidence: string[];
-  resolution?: { kind: 'harness-corrected' | 'expected-behavior'; reason: string };
+  /**
+   * harness-corrected: an earlier attempt failed because of the runner, and this attempt re-executed the scenario.
+   * check-corrected: the earlier attempt's execution was sound but the runner's own check was wrong; nothing was re-executed (replay unsafe or pointless).
+   * expected-behavior: the user confirmed the observed behavior is intended.
+   */
+  resolution?: { kind: 'harness-corrected' | 'check-corrected' | 'expected-behavior'; reason: string };
 };
 export type Report = {
   version: 1; generatedAt: string; project: string; run: Run;
