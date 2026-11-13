@@ -6,7 +6,7 @@ A barrier stays in place. Solving a CAPTCHA, spoofing a fingerprint or scripting
 
 ## Confirm it is a barrier
 
-Before writing the note, rule out the ordinary causes: a wrong locator, a missing wait, an element inside an iframe or shadow root, an expired session, a blocked popup. Reproduce once in a fresh context. A barrier is established by evidence of the mechanism, such as the provider's script, a challenge response or a score-based rejection, and the note says what that evidence was.
+Before writing the note, rule out the ordinary causes: a wrong locator, a missing wait, an element inside an iframe or shadow root, an expired session, a blocked popup. Reproduce once in a fresh context. A session whose network policy blocks the bot check's own script is still facing a barrier: the server demands the check, and widening network access would only expose it. Say in the note that the script was blocked and what the server answered. A barrier is established by evidence of the mechanism, such as the provider's script, a challenge response or a score-based rejection, and the note says what that evidence was.
 
 ## Write the note
 

@@ -16,6 +16,9 @@ Collect the ready decisions, recommending defaults and asking dependent question
 2. **Identity paths:** logged-out/guest, logged-in, or both; role-specific paths and how many distinct identities the journeys need. Discover the login mechanism from existing setup/source where possible. Allocate aliases such as `owner`, `member`, `unrelated`; never use a real username/email as an alias. Login parameters, host-account details and account values go through the private handoff below. Multiple tabs of the same account do not prove cross-account permissions.
 3. **Issue storage:** local Markdown drafts, GitHub Issues, Linear, or another destination. Confirm the exact repository/team/project and mode: local only, drafts for review, or create/update confirmed findings. Selecting a service is not permission for unrelated writes. Tool credentials such as `GH_TOKEN` also belong in `.env.qa` or an already approved connector, never config JSON.
 4. **Coverage and limits:** critical journeys; actually supported browsers/devices, viewport samples and locales; read-only versus run-owned fixture writes; public/external effects excluded unless separately authorized. Include evidence retention and request limits for fuzzing when requested.
+5. **Write budget**, when writes are allowed: how many test-owned writes the whole effort may make, and what one write is ("guest character", "draft"). Explain that learning the app writes too (inventorying a form submits it), and whether the app lets test data be deleted; on a production target, data that cannot be deleted stays there. Record the answer with `qa.ts budget <qa-root> <limit> "<unit>"`. The setup charter does not close without it.
+
+Before the interview ends, find the facts about the session itself that every later script needs, and write them into the map's notes: how Playwright is reached, the script format the QA root needs, whether non-browser HTTP needs proxy settings, which third-party hosts are blocked, and any first-visit dialog the app shows.
 
 Store confirmed non-sensitive answers in `config.json`, pending questions as strings in `checkpoint.json.pendingQuestions`, and actual user decision references in `interview/decisions.md`. See `examples/config.json` for the editable shape. Before execution, record the real setup confirmation with:
 
@@ -48,6 +51,8 @@ Later questions about browsers/locales, fixture permissions or scenario behavior
 ## Secret handling
 
 Highlight the boundary explicitly: **the agent never reads `.env.qa`; a local runner must load the values to use them.** The file is plaintext local secret storage, not encryption or a secret manager. The initializer creates it with restrictive permissions where supported; Windows access still follows local ACLs. Its workspace `.gitignore` excludes everything by default. Do not force-add it or authenticated storage/traces to Git.
+
+**Cloud sessions.** "Fill it locally" assumes the user has an editor on the workspace. In a cloud session they do not, so offer the ways that keep values out of chat: credentials a trusted runner creates and stores itself (a throwaway account it registers), the environment's secret store where the platform has one, or running the lanes that need the values on the user's own machine. A user may still choose to paste a throwaway credential; say that it then sits in the transcript, and never ask for a real one.
 
 After recording identity keys, private URL references and any additional `privateEnvKeys`, run:
 
@@ -97,8 +102,10 @@ If a tool cannot use credentials without exposing them to the agent, ask for a m
   map.json                    capability paths: intent, linked routes, reviewed inclusion
   interview/decisions.md       user answers, rationale, unresolved branches
   scenarios/QA-001.json        versioned-by-fingerprint scenario contracts, by tier
-  runners/*.ts                reusable, reviewed Playwright/API steps
-  checkpoint.json             position inside the charter in hand: jobs, questions, debt
+  runners/*.cjs               replayable scenario runners on <skill>/scripts/harness.cjs
+  runners/lib/                app-specific helpers shared by runners (sign-in, first-visit dialogs)
+  checkpoint.json             position inside the charter in hand: jobs, questions, next step
+  writes.json                 write budget, writes spent, and test fixtures left on the target
   review.json                 persisted approval order and authorized jumps
   locked.json                 locked suite fingerprint, source run, tiers, interaction fingerprint
   issues/                     local findings/drafts and remote tracker references
@@ -110,7 +117,7 @@ If a tool cannot use credentials without exposing them to the agent, ask for a m
     results.json              append-only observations/attempts
     report.json / .md / .html  same standard report model
     screenshots/              inspected non-sensitive captures
-    lanes/<lane>/             separate logs, traces and runner outputs
+    lanes/<lane>/             each worker's results.json, harness-log.json, logs and outputs
     private/                  sensitive local state; never shared/rendered
 ```
 

@@ -18,6 +18,40 @@ Drive each scenario through its `operations`: look up every address in `interact
 
 Capture **each screen/state the scenarios name as evidence**, including legal/error/approval/visited states where relevant. Use stable destination/visible-content/font/save readiness. Inspect every captured image for contrast, overlap, clipping and placement; compare later settled geometry if a transition is suspected. Real pointer interactions establish pointer usability; a forced click or keyboard workaround does not clear an overlap. For export/print, inspect the rendered pages, not only the download. Retain transient/failed captures with labels, not overwrites.
 
+## Build a runner without spending writes
+
+A runner is built by trial, and every trial of a writing step leaves data on the target. So build in this order:
+
+1. **Read-only first.** Write and debug the runner up to the first step that writes: navigation, locators, waits, the checks on what is already there. Repeat this part as often as needed; it costs nothing.
+2. **One fixture for exploration.** When the steps after a write must be explored, create one fixture, record it, and explore on that same fixture across script runs (save and reuse the browser's storage state under the lane's `private/` folder). A fresh fixture per trial is the mistake to avoid.
+3. **Then execute once.** With the runner checked, run the whole scenario from a fresh state. That execution is the attempt.
+
+A scenario whose starting state is random (a generated character, a seeded account) creates the state it needs as its first steps, as the scenario's preconditions say. A runner that only works on a lucky fixture is not replayable.
+
+## Writes are budgeted
+
+The setup records how many test-owned writes the user agreed to (`qa.ts budget <qa-root>` prints it). The count covers every phase, exploration included.
+
+- Before any step that writes, call `qa.spend(qaRoot, lane, what)` (or `qa.ts spend`). It records the write and refuses once the budget is spent. A refusal ends the lane's writing: record `blocked` for what remains and report.
+- Right after a write, before anything else can fail, record what it left: `qa.fixture(qaRoot, id, lane, note)`. When cleanup succeeds and is verified, record it again as `done`.
+- The parent splits the remaining budget between lanes in each brief and leaves a margin for itself. When the budget is too small for the approved scenarios, that is a question for the user, asked before dispatch.
+
+## Attempts, runner errors and corrections
+
+An **attempt** is one execution of the scenario and what was observed. Attempts are appended and never edited.
+
+- A crash or bug in the runner's own code is not an attempt: log it with `qa.runnerError()` and fix the runner.
+- An attempt that failed because the runner drove the app wrongly stays recorded. The next execution is a new attempt carrying `resolution: { kind: 'harness-corrected', reason }`.
+- An attempt whose execution was sound but whose own check was wrong, where replaying is unsafe or pointless, is corrected by appending a new record with the corrected status, the evidence from the original execution and `resolution: { kind: 'check-corrected', reason }`. Nothing is re-executed and the original record stays.
+- A step that must happen once across all attempts and replays, such as sending a real message, is guarded with `qa.once(laneDir, key)`. If it is unclear whether the step happened, it happened: do not repeat it, and record `inconclusive`.
+- At most three attempts per scenario; a further attempt needs a new, stated reason.
+
+## Stops
+
+- **429 or service instability.** One 5xx that the app retries and recovers from is recorded as evidence and the scenario is `inconclusive`; the lane continues. A second 5xx on the same target, any 429, or data changing that the run does not own stops every lane sharing that target until the parent has reconciled them.
+- **A refusal from the session's own permission or safety layer** stops the lane. Report exactly what was refused. The parent brings it to the user; neither the worker nor the parent repeats the action in another form.
+- **A barrier** blocks the scenario, per [barriers.md](barriers.md).
+
 ## When an operation does not resolve
 
 A stored locator that finds nothing, or an element whose effect differs from its record, is **inventory drift** until shown otherwise. Re-inventory that one route per [interactions.md](interactions.md) and compare:
@@ -25,6 +59,8 @@ A stored locator that finds nothing, or an element whose effect differs from its
 - The element moved, was renamed or restyled and still does the same thing: update its record and continue. Note the repair in the run's `limits`. Approvals are unaffected.
 - The element or its effect is gone or different in a way a rule cares about: that is an observation against the scenario, handled below.
 - The step now hits a bot check or third-party page: write the [barrier](barriers.md) note and record the scenario as `blocked`.
+
+During a run, workers do not edit inventory files that other lanes read. Each reports its corrections and the `deferred` elements it operated for the first time (address, locator, observed effect); the parent applies them after the lanes finish, as a `task` charter when there are many.
 
 ## Unexpected observations
 
@@ -35,17 +71,17 @@ When actual behavior differs from an approved expectation, preserve it as a fail
 3. Pause dependent cases until the answer; continue independent approved work.
 4. If the contract changes, present the semantic delta and updated coverage batch before requesting confirmation of affected content. Reuse settled rules instead of reopening every case. Start a new scrutiny run with the revised snapshot; preserve the earlier run and its questions/results.
 
-Classify each candidate finding as a product defect, a contract gap, a harness mistake or an environment block, and keep the classes separate in the report. Stop the affected lane on 429, unhealthy service behavior or unintended data changes. Preserve the first failure and make a controlled reproduction with isolated state. Further attempts need a new hypothesis, not a larger retry count. Record failures and later passes together; explain a demonstrated harness correction or expected behavior explicitly. A product fix belongs to a new observed build/run.
+Classify each candidate finding as a product defect, a contract gap, a harness mistake or an environment block, and keep the classes separate in the report. Preserve the first failure and make a controlled reproduction with isolated state. Further attempts need a new hypothesis, not a larger retry count. Record failures and later passes together; explain a demonstrated harness correction or expected behavior explicitly. A product fix belongs to a new observed build/run.
 
 ## Reusable artifacts
 
-Append results to `results.json`; see `scripts/models.ts` for the exact typed format. Each record has scenario ID, unique attempt number, status, timestamp, actual observations, browser/viewport/locale, actual test boundary, sanitized evidence and screenshot paths with `inspected` flags. Use `blocked`, `not-run` or `inconclusive` with a reason when execution cannot establish the expected result. Missing cases remain in the report as not run.
+Each lane appends its attempts to `runs/<run-id>/lanes/<lane>/results.json` through the harness; the parent merges them into the run's `results.json`. See `scripts/models.ts` for the exact typed format. Each record has scenario ID, unique attempt number, status, timestamp, actual observations, browser/viewport/locale, actual test boundary, sanitized evidence and screenshot paths with `inspected` flags. Use `blocked`, `not-run` or `inconclusive` with a reason when execution cannot establish the expected result. Missing cases remain in the report as not run.
 
 `boundary` is a stable claim label: use the scenario's approved label only when that boundary was actually exercised, with details in evidence. If a local/mock substitute was used, record its actual lower boundary instead. The report treats a pass/fail at a different boundary as inconclusive for the approved scenario; it preserves the raw attempt. Never copy the approved label merely to bypass this check.
 
-Store stable Playwright automation in `runners/` for every scenario that can be replayed, built from the same `operations` and locators; a locked happy path without a runner records why. Prefer existing project test infrastructure. Scripts consume env key names through the trusted loader, have owned fixtures/cleanup and separate output paths, and assert the approved behavior. Store execution commands, dependencies and how to run them in a short sibling note or the checkpoint. Avoid saving brittle exploratory snippets as if they were a verified suite; label candidates until replayed. Never change assertions merely to make a run green.
+Store stable Playwright automation in `runners/` for every scenario that can be replayed, built on `<skill>/scripts/harness.cjs` from the same `operations` and locators (`examples/runner.cjs`); a locked happy path without a runner records why. Screenshots carry the attempt number in their name, so later attempts never overwrite earlier evidence. A screenshot's `inspected` flag is set only by someone who opened the image. Prefer existing project test infrastructure. Scripts consume env key names through the trusted loader, have owned fixtures/cleanup and separate output paths, and assert the approved behavior. Store execution commands, dependencies and how to run them in a short sibling note or the checkpoint. Avoid saving brittle exploratory snippets as if they were a verified suite; label candidates until replayed. Never change assertions merely to make a run green.
 
-Keep findings in `run.json.findings` and detailed local issue files. Retain fixture ownership and cleanup in `run.json.fixtures`. Clean up only ledger-owned fixtures, after the checks that depend on them finish, and compare preserved shared state with its original. When cleanup cannot finish, hand off the IDs, their owner and the next action. Automated test totals and raw contract-fuzzer counts have separate arrays in `run.json`; do not add them to exploratory scenario totals. Private state/traces remain outside shareable evidence. Read the conditional embedded/API references only for those lanes.
+Keep findings in `run.json.findings` and detailed local issue files. Fixtures live in the effort-wide ledger (`writes.json`, through `qa.ts fixture`); copy the run's own into `run.json.fixtures` when merging, so the report shows them. Clean up only ledger-owned fixtures, after the checks that depend on them finish, and compare preserved shared state with its original. When cleanup cannot finish, hand off the IDs, their owner and the next action. Automated test totals and raw contract-fuzzer counts have separate arrays in `run.json`; do not add them to exploratory scenario totals. Private state/traces remain outside shareable evidence. Read the conditional embedded/API references only for those lanes.
 
 ## Retest and resume
 

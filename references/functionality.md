@@ -4,9 +4,13 @@ The inventory says what the app lets a user do. This phase settles what each **c
 
 ## Group routes into capabilities
 
-A `task` charter, the agent's alone. Read the inventory and group routes and elements by what a user is trying to accomplish: durable draft editing, party collaboration, external sign-in. A capability may span several routes, and one route may serve several capabilities.
+A `task` charter, the agent's alone. Read the inventory (`qa.ts interactions <qa-root> <route>` prints a route by section) and group routes and elements by what a user is trying to accomplish: durable draft editing, party collaboration, external sign-in. A capability may span several routes, and one route may serve several capabilities.
 
-Write one `map.json` path per capability with a title, `routes` (the route IDs it spans) and `disposition: "pending"`. `qa.ts interactions <qa-root>` lists inventoried routes no capability links yet; each one joins a capability or gets an excluded path with a reason. Then chart an `intent` charter and a happy `scenarios` charter per capability, per [wayfinding.md](wayfinding.md).
+- **Group what is inventoried.** Routes still waiting on an account or a host are grouped later; leave them as one fog line. A grouping charter blocked by every inventory stalls the effort on the user.
+- **A dense route splits by goal.** A screen where a user does five different jobs yields five capabilities, each naming the sections it covers.
+- **Shared layout is a capability only where a user has a goal there:** getting around, choosing a language, giving consent, reporting a problem.
+
+Write one `map.json` path per capability with a title, `routes` (the route IDs it spans) and `disposition: "pending"`. `qa.ts interactions <qa-root>` lists inventoried routes no capability links yet; each one joins a capability or gets an excluded path with a reason. Then chart an `intent` charter and a happy `scenarios` charter per capability, plus the run and lock charters, exactly as the table in [wayfinding.md](wayfinding.md) gives them.
 
 Allocate paths consecutively (`PATH-001`, `PATH-002`, ...). For later discoveries use `qa.ts next-path-id <qa-root>`. The parent owns allocation. A retired path stays, excluded with its reason; IDs and result history are kept.
 
@@ -44,14 +48,19 @@ Once that rule is settled, the HP, reload, roster and private-field checks are t
 
 ## Derive the happy paths
 
-Charter kind `scenarios`, tier `happy`. For each rule, write the journeys in which a legitimate user does the intended thing and it works: create, edit, save and reload, navigate, cancel, and the receiving view where another identity must see the result. Cross-account behavior needs two distinct accounts. Use risk to choose combinations; one scenario per meaningful journey, with the browser, viewport and locale samples agreed in setup.
+Charter kind `scenarios`, tier `happy`. For each rule, write the journeys in which a legitimate user does the intended thing and it works: create, edit, save and reload, navigate, cancel, and the receiving view where another identity must see the result. Cross-account behavior needs two distinct accounts.
+
+**How many.** Every rule is exercised by at least one scenario; one journey may exercise several rules. Add a scenario for a variant (another class of input, the phone layout) only when a rule or a listed risk depends on it. Each scenario that writes spends from the write budget on every run, so a suite that needs more writes than the budget allows is a question for the user before it is a suite.
 
 Failures, denials and abuse wait for the error and adversarial tiers. When one occurs to you now, add a fog line.
 
 Each `scenarios/<QA-ID>.json` holds identities, preconditions, ordered steps, observable expected outcomes, criticality, test boundary, evidence, cleanup, and:
 
 - `tier: "happy"`.
-- `operations`: the interaction addresses the steps drive, in order, each one `operated` in the inventory. A step that needs a `skipped` interaction, such as deleting a run-owned draft, is operated first on an owned fixture and its record updated.
+- `rule`: the rule or rules the scenario exercises, copied word for word from the capability's intent and joined with ` / `. Every expected outcome traces to one of them. An outcome no rule supports ("no request fails anywhere") is either a rule to propose to the user or not an expectation.
+- `operations`: the interaction addresses the steps drive, in order. Each is `operated` or `deferred` in the inventory; a deferred one is operated for the first time by the run.
+- **Preconditions written for this scenario.** State the identity and starting state it actually needs. A journey that creates nothing says so, and its cleanup is empty. A journey that needs particular state (an item to equip, a second member) creates that state in its first steps, because a fresh fixture is often random.
+- **Shared fixtures.** Scenarios are independent by default. Several may share one fixture only when none of them changes what another reads; say so in each one's preconditions.
 
 Expectations trace to a settled rule or a clearly presented proposal. Mark a scenario critical when it protects an agreed release-blocking outcome. Changing existing criticality needs a recorded decision.
 
@@ -59,7 +68,16 @@ Alongside the scenarios, draft the [swarm execution plan](swarm.md) from what is
 
 ## Confirm the scope as a batch
 
-Persist the scenarios and regenerate the review document before asking. Lead with the capability's goal and rules, the proposed critical outcomes, a rule-to-scenario coverage table, boundaries, exclusions and remaining questions; link the full scenarios as optional detail. Obtain **one explicit confirmation of the displayed scope**, for one capability or for all of them together. That answer covers exactly the scenarios shown. Keep a genuinely unresolved scenario pending, or exclude it with a reason.
+Check the drafts before anyone reviews them, then link them to their capabilities:
+
+```text
+node <skill>/scripts/qa.ts lint-scenarios <qa-root> [QA-ID...]
+node <skill>/scripts/qa.ts wire-scenarios <qa-root>
+```
+
+The lint reports shape problems, operations that do not resolve, rules that match no settled rule, and rules no scenario names yet. `wire-scenarios` sets each capability's scenario list from the files, so nobody edits `map.json` for that. When several workers derive in parallel, the parent hands each a range of scenario IDs and wires once at the end.
+
+Persist the scenarios and regenerate the review document before asking. State what a full run costs: how many writes, and anything it sends. Lead with the capability's goal and rules, the proposed critical outcomes, a rule-to-scenario coverage table, boundaries, exclusions and remaining questions; link the full scenarios as optional detail. Obtain **one explicit confirmation of the displayed scope**, for one capability or for all of them together. That answer covers exactly the scenarios shown. Keep a genuinely unresolved scenario pending, or exclude it with a reason.
 
 Record the decision and the displayed IDs in `interview/decisions.md`, then:
 

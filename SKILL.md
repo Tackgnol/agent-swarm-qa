@@ -61,7 +61,7 @@ Conditional references: [barriers.md](references/barriers.md) when Playwright ca
 
 **Tiers in order.** Before the baseline locks, error paths and attacks are fog: note the idea in one line and keep going. The helper refuses to run them earlier.
 
-**Stay inside the agreed effects.** Act within the mutation policy, on run-owned fixtures, within the request budget. Stop the affected lane on 429, service instability or unintended data changes. A barrier gets a note and stays in place. Existing user data stays untouched.
+**Stay inside the agreed effects.** Act within the mutation policy, on run-owned fixtures, within the request budget and the write budget the user agreed (`qa.ts budget`). Record each write before making it and each fixture right after; build runners on `scripts/harness.cjs`, read-only steps first. A refusal from the session's permission or safety layer stops that work: report it to the user. Stop the affected lane on 429, service instability or unintended data changes. A barrier gets a note and stays in place. Existing user data stays untouched.
 
 **Every stop leaves a report.** Each run, including a failed or interrupted one, renders `report.json`, `report.md` and `report.html` from the same model. First failures, all attempts and missing coverage stay visible; a flaky pass stays inconclusive until its cause is shown.
 

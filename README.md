@@ -145,10 +145,18 @@ node scripts/qa.ts close <qa-root> <charter> "<one-line gist>"
 node scripts/qa.ts release <qa-root> <charter>
 node scripts/qa.ts rule-out <qa-root> <charter> "<reason>"
 node scripts/qa.ts chart <qa-root>
+node scripts/qa.ts chart-add <qa-root> <file.json>
+node scripts/qa.ts gist <qa-root> <charter> "<corrected gist>"
+node scripts/qa.ts budget <qa-root> [<limit> "<unit>"]
+node scripts/qa.ts spend <qa-root> <who> "<what>"
+node scripts/qa.ts fixture <qa-root> <id> <owner> "<note>" [pending|done|handed-off]
 node scripts/qa.ts env-template <qa-root>
 node scripts/qa.ts prepare-env <qa-root>
 node scripts/qa.ts check-env <qa-root>
-node scripts/qa.ts interactions <qa-root>
+node scripts/qa.ts interactions <qa-root> [route]
+node scripts/qa.ts route-status <qa-root> <route> <status> [reason]
+node scripts/qa.ts lint-scenarios <qa-root> [QA-ID...]
+node scripts/qa.ts wire-scenarios <qa-root>
 node scripts/qa.ts next-path-id <qa-root>
 node scripts/qa.ts next-path <qa-root>
 node scripts/qa.ts approve <qa-root> setup <actual-user-decision-reference>
@@ -161,7 +169,7 @@ node scripts/qa.ts run <qa-root> canary <new-run-id> retest
 node scripts/qa.ts to-gherkin <qa-root> <unique-export-id>
 ```
 
-`examples/` contains non-sensitive **unapproved** shapes: setup, a map of charters, routes, one route's interactions, a capability, a scenario and a barrier note. Adapt them to the real product; copying an example is not user approval. Fill results according to [models.ts](scripts/models.ts). `report` without a run ID produces a planning report before execution is possible.
+`examples/` contains non-sensitive **unapproved** shapes: setup, a map of charters, routes, one route's interactions, a capability, a scenario, a barrier note and a scenario runner. Runners build on the shipped harness, `scripts/harness.cjs`: a tracked browser session, attempt-numbered screenshots, append-only attempts, budgeted writes and fixture records. Adapt them to the real product; copying an example is not user approval. Fill results according to [models.ts](scripts/models.ts). `report` without a run ID produces a planning report before execution is possible.
 
 The `.env.qa` boundary is literal: the agent never inspects the file; trusted local code necessarily loads it to use credentials. Child stdout/stderr receive literal-value redaction, but encoded values and screenshots need collection-time protection. The file is local plaintext, not a vault. Users enter values locally rather than in chat.
 
@@ -180,6 +188,14 @@ Approvals fingerprint exactly what you confirmed. Scenario `operations` and capa
 Each scenario has a `tier`: `happy`, `error` or `adversarial`; scenarios from older workspaces without one count as happy. A lock records the scenario count per tier and a fingerprint of the inventory. On a retest, a changed inventory is reported as drift to repair before any failure is attributed to the product. An adversarial scenario must name the rule it tries to break, so its result is always “the rule held” or “the rule broke”.
 
 Adversarial testing here means abusing the app's own features with legitimate QA accounts inside the agreed effects and request budget. It is not a penetration test, a load test or an attempt to defeat bot checks.
+
+### Trials
+
+[trials/](trials/) records runs of the skill against real apps: what held, what broke, and the status of each gap found. The first is [scvmrack on production](trials/2026-11-scvmrack.md).
+
+### Writes are budgeted
+
+When the setup allows test-owned writes, the user agrees how many the whole effort may make, inventory and exploration included. Every write is recorded before it is made (`spend`, or `qa.spend()` in a runner), and the helper refuses once the budget is gone, so a lane stops instead of overshooting. Test data left on the target is recorded with `fixture` and shown on the map. This came out of the first live trial, where exploration created more production data than agreed.
 
 ### Existing workspaces
 

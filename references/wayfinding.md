@@ -8,7 +8,7 @@ The map is how the effort keeps its focus across long conversations, compactions
 
 A charter keeps one line of outcome, its **gist**. The detail lives in exactly one place, the artifact the charter produced: `routes.json`, `interactions/<route>.json`, an intent in `map.json`, `scenarios/`, a run directory, `interview/decisions.md`. Zoom into those files when a charter needs them.
 
-`checkpoint.json` holds position inside the charter in hand: active jobs, pending questions, the next concrete step. The map says which charter; the checkpoint says where in it. Update the checkpoint before waiting on the user.
+`checkpoint.json` holds position inside the charter in hand: active jobs, pending questions, the next concrete step. The map says which charter; the checkpoint says where in it. Update the checkpoint before waiting on the user. Writes and the test data they left live in `writes.json`, through `qa.ts spend` and `qa.ts fixture`; the map shows the count.
 
 ## Charter shape
 
@@ -42,7 +42,24 @@ Size a charter to fit comfortably in one session: one route, one capability, one
 
 The **frontier** is every charter that is open, unclaimed and unblocked. The map lists it in charted order, and the default next charter is the first one.
 
-`claim` records who holds a charter. A claimant holds one charter at a time: the parent claims as `parent`, each swarm worker under its lane ID (`qa.ts claim <qa-root> <charter> lane-3`). A worker closes its own charter; the parent verifies the artifacts before depending on them. Only the parent edits `charters.json` to add charters or fog.
+The map lists the frontier in two groups: what needs the user (HITL) and what an agent can take (AFK). While the parent holds a HITL charter, workers take the AFK ones.
+
+`claim` records who holds a charter. A claimant holds one charter at a time: the parent claims as `parent`, each swarm worker under its lane ID (`qa.ts claim <qa-root> <charter> lane-3`). A worker closes its own charter; the parent verifies the artifacts before depending on them.
+
+**Shared files change through the helper.** Every helper command that changes `charters.json`, `routes.json`, `map.json` or `writes.json` runs under one lock, so parallel workers cannot drop each other's changes. A hand edit bypasses the lock: the parent makes one only when no worker is running. Charting goes through a file:
+
+```json
+{ "charters": [ { "id": "inventory-party", "name": "Inventory the party roster", "kind": "inventory", "mode": "AFK",
+                  "mission": "...", "subjects": ["party"], "blockedBy": ["find-routes", "account-access"] } ],
+  "addFog": ["One line of fog."],
+  "removeFog": ["Opening words of the fog line this replaces"] }
+```
+
+```text
+node <skill>/scripts/qa.ts chart-add <qa-root> <file.json>
+```
+
+New charters start open and unclaimed. A fog line is removed by its full text or by opening words that match exactly one line. Workers use the same command with `addFog` alone to park what they notice; the parent adds charters.
 
 When the charter in hand turns out to need something first, chart the blocker, add it to `blockedBy`, `release` the charter and take the blocker.
 
@@ -58,9 +75,12 @@ After a close, chart what has become specifiable and delete the fog lines it rep
 
 | Closed | Chart next |
 |---|---|
-| Find every route | Already done as part of closing it: one `inventory` charter per pending route, each blocked by route finding. Add a `task` charter, blocked by all the inventories, to group routes into capabilities. |
-| The last inventory, then the grouping task | Per capability: an `intent` charter, and a happy `scenarios` charter blocked by it. Then one `run` charter blocked by all happy `scenarios` charters, and a `lock` charter blocked by the run. |
-| A run that met an ambiguous expectation | An `intent` charter for that one question, blocking the lock. |
+| Find every route | Already done as part of closing it: one `inventory` charter per pending route, each blocked by route finding and by the access charter it waits on, if any. Add a `task` charter to group routes into capabilities, blocked only by the inventories that can proceed now; the rest is one fog line. |
+| The inventories that can proceed, then the grouping task | Per capability: an `intent` charter, and a happy `scenarios` charter blocked by it. Then one `run` charter blocked by all happy `scenarios` charters, its subject a run ID chosen now (`happy-1`), and a `lock` charter blocked by the run. |
+| An access charter (an account, a host room) | The inventories it unblocked proceed; then a second grouping task for those routes. |
+| A run that paused before every scenario had a result | A HITL `task` charter for how it continues, blocking the run charter, when the cause is the user's to decide (budget, a refusal, a barrier). |
+| A run that met an ambiguous expectation | An `intent` charter for the questions the run raised, blocking the lock. |
+| A run whose lanes reported inventory corrections | A `task` charter to apply them. |
 | Lock the baseline | Per capability: an error `scenarios` charter. Then a `run` and a `lock` for the error tier. |
 | Lock the error tier | Per capability: an adversarial `scenarios` charter. Then a `run` and a `lock`. |
 | Any charter that hit a barrier the user could lift | A HITL `task` charter stating the exact thing to provision, per [barriers.md](barriers.md). |
@@ -83,7 +103,9 @@ A workspace created before the map has no `charters.json`. Run `qa.ts chart <qa-
 ```text
 node <skill>/scripts/qa.ts map <qa-root> [all]                 low-resolution map; `all` lifts the per-section cap
 node <skill>/scripts/qa.ts claim <qa-root> <charter> [claimant]  take a charter; prints mission, reference and criterion
-node <skill>/scripts/qa.ts close <qa-root> <charter> "<gist>"    close against the criterion
+node <skill>/scripts/qa.ts close <qa-root> <charter> "<gist>"    close against the criterion; prints what was checked
+node <skill>/scripts/qa.ts gist <qa-root> <charter> "<gist>"     correct a closed charter's one-line gist
+node <skill>/scripts/qa.ts chart-add <qa-root> <file.json>       add charters and fog, remove fog
 node <skill>/scripts/qa.ts release <qa-root> <charter>           hand a charter back to the frontier
 node <skill>/scripts/qa.ts rule-out <qa-root> <charter> "<reason>"
 node <skill>/scripts/qa.ts chart <qa-root>                       chart the opening for a workspace without a map

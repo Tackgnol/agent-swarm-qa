@@ -4,7 +4,11 @@ Use when route inventories, a run's lanes or adversarial lanes can proceed side 
 
 ## Workers and charters
 
-A worker carries exactly one charter, claimed under its lane ID (`qa.ts claim <qa-root> <charter> lane-3`), and closes it itself; the close check is its exit gate. `inventory` charters go one per worker. A `run` charter belongs to the parent, which splits its scenarios into lanes as below. The parent keeps its own charter in hand, usually the HITL one the user is answering, and alone adds charters or fog.
+A worker holds one charter at a time, claimed under its lane ID (`qa.ts claim <qa-root> <charter> lane-3`), and closes it itself; the close check is its exit gate. A worker may carry a short queue of charters that share its resources (inventories using one guest fixture), taking them one after another. A `run` charter belongs to the parent, which splits its scenarios into lanes as below. The parent keeps its own charter in hand, usually the HITL one the user is answering, and charters what each close makes specifiable. Workers park what they notice as fog through `qa.ts chart-add`.
+
+**Write the shared brief once.** Put what every worker of a phase needs (paths, the harness, session facts, bounds, how to park, what to report) in one brief file under the QA root, and give each worker only its own assignment on top. Facts about the session itself (script format, proxy quirks, a first-visit dialog) go in the map's notes, which every worker reads first.
+
+**Workers report skill friction.** Each report ends with numbered points where the skill's documents or helpers were unclear, wrong or in the way. The parent files them; workers do not edit shared files to do it.
 
 ## Build the plan from learned work
 
@@ -28,8 +32,9 @@ Two lanes can overlap only when their actions cannot invalidate each other's pre
 | Account | Keep login/logout, account-wide settings and mutable account collections exclusive. Separate browser contexts do not isolate server-side account state. Share read access only while its observed state stays stable. |
 | Fixtures | Give each lane its own namespace/IDs. Sequence overlapping reads and writes; a read-only observer can still be disrupted by another lane's mutation. |
 | Shared room, scene or external host | One lane operates it at a time, including scene switches and cleanup. Keep a multi-account journey under one operator with allocated actor contexts. Separate rooms may still share account or service limits. |
-| Parent files | Only the parent writes `routes.json`, capabilities, approvals, new charters, aggregate results, the fixture ledger and final reports. Workers write only their assigned lane artifacts and, for an inventory, their own `interactions/<route>.json`. |
+| Shared files | `charters.json`, `routes.json`, `map.json` and `writes.json` change only through helper commands, which serialize under one lock. Approvals, aggregate results and final reports are the parent's. Workers write their lane artifacts and, for an inventory, their own `interactions/<route>.json`. |
 | Request limits | Divide a target-wide request budget across workers, including shared egress/IP limits. Browser isolation does not create a fresh service budget. |
+| Write budget | Divide the remaining agreed writes (`qa.ts budget`) between lanes and state each lane's share in its brief, keeping a margin. Every lane spends through `qa.ts spend`, which refuses once the whole budget is gone. |
 
 For example, guest browsing with isolated browser storage, owner draft editing on account A with its own fixtures, and read-only contract checks may overlap if their rate budget and state dependencies permit. A party journey needing A and B waits for A's editing lane to finish. A shared-room integration lane gets an exclusive room/browser turn. Splitting these by feature name alone would conceal the conflicts.
 
@@ -53,14 +58,15 @@ Resources: <allocated account aliases, verified context handles, fixture namespa
 trusted runners load them. Never inspect or print them.
 Start only after: <prerequisite completion + verified handoff evidence, or none>.
 Permitted actions: <approved effects>. Preserve <existing/shared data>.
-Request budget: <lane share of the target budget>.
-Evidence: append lane results using the Result shape from scripts/models.ts;
-record actual boundaries, inspected captures, findings and fixture IDs/cleanup debt.
-Use lane-specific screenshot filenames and paths relative to the run.
-Stop/report: 429, unstable service, unintended changes, resource conflict,
-unexpected build/identity, or an unresolved specification decision.
+Request budget: <lane share of the target budget>. Write budget: <lane share>, spent
+through qa.spend before each write; build runners read-only first.
+Evidence: runners built on <skill>/scripts/harness.cjs; attempts appended with
+qa.record, runner crashes with qa.runnerError, fixtures with qa.fixture.
+Stop/report: 429, a second 5xx, unintended changes, a permission or safety refusal,
+a resource conflict, unexpected build/identity, or an unresolved specification decision.
 Cleanup: <owned fixtures that may be removed now versus those to hand off>.
-Return: dispositions for assigned cases, artifacts, limitations, fixtures and next action.
+Return: dispositions for assigned cases, artifacts, limitations, fixtures, inventory
+corrections, candidate findings, skill friction and next action.
 Keep expectations unchanged. Route questions through the parent. Do not edit product
 code, shared QA files or external issues, or delegate further without assignment.
 ```
@@ -72,6 +78,8 @@ Give the worker the relevant sanitized artifacts rather than making it rediscove
 Reserve resources in the plan before starting a worker. Launch dependency-ready lanes within available slots, retaining parent capacity to coordinate. If the environment limits active workers or no useful independence exists, queue the remainder and disclose serial coverage. Monitor progress and unblock queued work when its dependencies and resources are ready.
 
 A worker's completion message does not release shared fixtures automatically. Verify its artifacts and prerequisite evidence; only then hand fixtures to dependents or clean them after their last consumer. On 429 or service instability, suspend every lane sharing the affected target/budget and reconcile in-flight work before another attempt. Interrupted or unknown worker state keeps resources reserved until the parent confirms the worker stopped and its in-flight effects settled.
+
+A worker that stops on a refusal from the session's permission or safety layer has done the right thing. The parent reports the refusal to the user and does not repeat the refused action itself or through another worker.
 
 Before merging lane results, check the case/matrix assignment, target/build/suite provenance, actual test boundary, attempt numbering, safe run-relative evidence paths and fixture ownership. Preserve failures and distinguish product defects from harness/resource conflicts. Deduplicate candidate findings while retaining their evidence. Missing or unsupported worker claims stay blocked/not-run/inconclusive; a summary is not proof of execution. The parent alone updates aggregate results and the standard report.
 
