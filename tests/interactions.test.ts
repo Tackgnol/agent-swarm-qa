@@ -143,3 +143,30 @@ test('a retest notes inventory drift since the lock instead of blaming the produ
     assert.notEqual(drifted.interactionsHash, locked.interactionsHash);
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });
+
+test('an interaction that opens a dialog names the section holding it, and that section must be inventoried before the route closes', async () => {
+  const { inventoryGaps } = await import('../scripts/interactions.ts');
+  const f = fixture();
+  try {
+    const route = loadRoutes(f.root).routes.find(entry => entry.id === 'draft-editor')!;
+    assert.deepEqual(inventoryGaps(f.root, route), []);
+    const file = join(f.root, 'interactions', 'draft-editor.json');
+    const entry = readJson<RouteInteractions>(file);
+    const broken = structuredClone(entry);
+    broken.interactions.find(item => item.element === 'share')!.opens = 'nowhere';
+    writeJson(file, broken);
+    assert.throws(() => loadInteractions(f.root), /opens names a section of this route/);
+    const unnamed = structuredClone(entry);
+    delete unnamed.interactions.find(item => item.element === 'share')!.opens;
+    writeJson(file, unnamed);
+    assert.match(inventoryGaps(f.root, route).join(' '), /name the section holding its contents with "opens": draft-editor\/header\/share\/click/);
+    const empty = structuredClone(entry);
+    empty.interactions = empty.interactions.filter(item => item.section !== 'share-dialog');
+    writeJson(file, empty);
+    assert.match(inventoryGaps(f.root, route).join(' '), /section share-dialog has no interactions/);
+    const badRead = structuredClone(entry);
+    badRead.sections[0].read = '#title';
+    writeJson(file, badRead);
+    assert.throws(() => loadInteractions(f.root), /read is a Playwright locator inside the section/);
+  } finally { rmSync(f.project, { recursive: true, force: true }); }
+});

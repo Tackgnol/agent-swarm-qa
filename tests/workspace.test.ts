@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { approve, inside, initialize, loadSuite, lockSuite, readJson, startRun, writeJson } from '../scripts/workspace.ts';
+import { approvalHash, approve, inside, initialize, loadSuite, lockSuite, readJson, startRun, writeJson } from '../scripts/workspace.ts';
 import type { Config, PathMap, Result, Run, Scenario } from '../scripts/models.ts';
 import { fixture } from './helpers.ts';
 
@@ -100,4 +100,33 @@ test('a host endpoint selects either its public URL or its private key reference
     approve(f.root, 'setup', 'offline-private-target');
     assert.ok(loadSuite(f.root).hash);
   } finally { rmSync(f.project, { recursive: true, force: true }); }
+});
+
+test('a workspace can live outside the product; the product path is recorded and stays outside the setup approval', async () => {
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { createRequire } = await import('node:module');
+  const product = mkdtempSync(join(tmpdir(), 'swarm-qa-product-'));
+  const elsewhere = mkdtempSync(join(tmpdir(), 'swarm-qa-elsewhere-'));
+  try {
+    const root = initialize(product, 'outside', elsewhere);
+    assert.equal(root, join(elsewhere, '.scratch', 'QA', 'outside'));
+    const config = readJson<Config>(join(root, 'config.json'));
+    assert.equal(config.productRoot, product);
+    assert.ok(existsSync(join(root, 'private')) && existsSync(join(root, 'runners', 'lib', 'app.cjs')));
+    const app = createRequire(import.meta.url)(join(root, 'runners', 'lib', 'app.cjs'));
+    assert.equal(app.QA_ROOT, root);
+    await assert.rejects(() => app.signIn(null, 'owner'), /signIn\(owner\) is not written yet/);
+    approve(root, 'setup', 'offline-setup');
+    const moved = readJson<Config>(join(root, 'config.json'));
+    moved.productRoot = '/somewhere/else';
+    writeJson(join(root, 'config.json'), moved);
+    assert.ok(approvalHash(moved) === readJson<Config>(join(root, 'config.json')).setupApproval!.contentHash);
+    assert.equal(initialize(product, 'inside'), join(product, '.scratch', 'QA', 'inside'));
+    assert.equal(readJson<Config>(join(product, '.scratch', 'QA', 'inside', 'config.json')).productRoot, undefined);
+    assert.throws(() => initialize(product, 'nowhere', join(elsewhere, 'missing')), /existing directory for the workspace/);
+  } finally {
+    rmSync(product, { recursive: true, force: true });
+    rmSync(elsewhere, { recursive: true, force: true });
+  }
 });

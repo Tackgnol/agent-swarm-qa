@@ -30,12 +30,12 @@ The first run of the skill against a real app: [scvmrack](https://scvmrack.rpgto
 
 ## Gaps and their status
 
-50 fixed, 4 partly fixed, 2 open. Numbers follow the order the gaps were found in.
+55 fixed and 1 closed as covered by other fixes, after a second pass on the six that were open or partly fixed. Numbers follow the order the gaps were found in.
 
 | # | Gap | Status | Where | Fix |
 |---|---|---|---|---|
 | 1 | `.env.qa` assumes a local machine | fixed | Docs | init.md: cloud-session options for credentials |
-| 2 | Workspace location | open |  | init.md still describes only the product-root workspace |
+| 2 | Workspace location | fixed | Helper | init --in places the workspace elsewhere; productRoot recorded in config.json |
 | 3 | Who writes routes.json and charters inventories | fixed | Helper | shared files change through locked helper commands |
 | 4 | No write protection on charters.json | fixed | Helper | one lock around every map change |
 | 5 | Route finding has no way to be pure read-only | fixed | Docs | interactions.md: "A page load can write" |
@@ -45,14 +45,14 @@ The first run of the skill against a real app: [scvmrack](https://scvmrack.rpgto
 | 9 | Close with a relative qa-root worked once and then I re-ran with the absolute path, which printed 'already closed' | fixed | Helper | close prints what it checked; gist corrects a closed gist |
 | 10 | Plain Node `fetch` ignores the session proxy | fixed | Harness | apiGet reads through the page; init.md asks about proxy quirks |
 | 11 | Barriers.md tells a worker to rule out ordinary causes, but a sandbox network block that hides a captcha script is both | fixed | Docs | barriers.md: a blocked bot-check script is still a barrier |
-| 12 | No guidance for private runner state | partial | Docs | execution.md: storage state under the lane private/ folder; no wider convention |
+| 12 | No guidance for private runner state | fixed | Docs | workspace private/ folder with saveState and a documented convention |
 | 13 | No fixture ledger outside a run | fixed | Helper | writes.json holds fixtures for every phase |
 | 14 | Shared layout is not addressed | fixed | Docs | shared layout inventoried once |
 | 15 | Fixed mid-run | fixed | Helper | mid-run fixes |
 | 16 | Route notes versus charter bounds | fixed | Docs | route reason holds standing facts; phase rules go in missions |
 | 17 | Identities that are not available yet | fixed | Helper | pendingIdentities on a route, shown in the summary |
 | 18 | Page-level actions and post-submit states | fixed | Helper | navigate, reload and back as page-level actions |
-| 19 | No starter for a persistent browser context | partial | Harness | session() accepts storageState; no app-specific starter |
+| 19 | No starter for a persistent browser context | fixed | Harness | saveState plus a starter runners/lib/app.cjs created at init |
 | 20 | One record per element and action is silent on repeats | fixed | Docs | rules for repeated items and multiple triggers |
 | 21 | A modal hides the page from the accessibility snapshot | fixed | Docs | re-snapshot after dismissing a modal |
 | 22 | The close message points at "graduate" without saying how | fixed | Helper | close tells the parent to chart-add, with the file shape |
@@ -72,15 +72,15 @@ The first run of the skill against a real app: [scvmrack](https://scvmrack.rpgto
 | 36 | `skipped` blocks legitimate scenario entry points | fixed | Helper | deferred interaction state; scenarios may reference it |
 | 37 | No helper lists interaction addresses | fixed | Helper | interactions <qa-root> <route> |
 | 38 | Scenario count guidance is vague | fixed | Docs | how many scenarios: rules first, variants only when a rule needs them |
-| 39 | No field for "needs operating" | partial | Helper | deferred plus a lint warning; no needs field |
-| 40 | Inventory missed nested dialog controls | partial | Docs | documented; not enforced by the inventory close check |
+| 39 | No field for "needs operating" | closed |  | deferred plus the lint warning cover it; a separate field would duplicate them |
+| 40 | Inventory missed nested dialog controls | fixed | Helper | opens names the section; the inventory close check enforces it |
 | 41 | Not every scenario needs a fixture | fixed | Docs | preconditions written per scenario |
 | 42 | The address format is not self-evident from the file | fixed | Docs | address format spelled out |
 | 43 | Fresh fixture per scenario forces repeated setup | fixed | Docs | shared fixtures allowed when no scenario changes what another reads |
 | 44 | Harness bug (parent's) | fixed | Harness | harness ships with the skill, with tests |
 | 45 | Probing is unbudgeted | fixed | Docs | build runners read-only first; one fixture for exploration |
 | 46 | Permission layer versus agreed effects | fixed | Docs | a refusal stops the lane; the parent reports it, never repeats it |
-| 47 | Sections without stable handles | open |  | regions without stable handles still need heuristics |
+| 47 | Sections without stable handles | fixed | Harness | section read locators, sectionStates and changedSections; unhandled regions make the attempt inconclusive |
 | 48 | Helper bug: `run` and `lock` overwrite checkpoint.json | fixed | Helper | run and lock merge into the checkpoint |
 | 49 | Resolution semantics are incomplete | fixed | Helper | check-corrected resolution |
 | 50 | No way to amend a check-only error when replay is unsafe | fixed | Docs | appended correction record instead of an in-place edit |

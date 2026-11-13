@@ -138,7 +138,7 @@ To continue later, in the same or a new conversation: “Continue the QA map.”
 Helpers run relative to this skill's location:
 
 ```text
-node scripts/qa.ts init <product-root> <project-slug>
+node scripts/qa.ts init <product-root> <project-slug> [--in <directory>]
 node scripts/qa.ts map <qa-root> [all]
 node scripts/qa.ts claim <qa-root> <charter> [claimant]
 node scripts/qa.ts close <qa-root> <charter> "<one-line gist>"
@@ -175,7 +175,7 @@ The `.env.qa` boundary is literal: the agent never inspects the file; trusted lo
 
 Private host URLs use `environment.hostUrlEnv` references; additional private connection parameters use `privateEnvKeys`. Both join account keys in preparation, template generation and presence checks. For Owlbear, the Init handoff can prepare `OWLBEAR_URL` and numbered `OWLBEAR_LOGIN_1` / `OWLBEAR_PASS_1` slots. Private prerequisite setup stays separate from scenario, browser-matrix and fixture-policy interviews.
 
-QA output lives under the product's `.scratch/QA/<project>/`, not this skill repository. Existing workspaces, credentials and run IDs are not overwritten. Local report generation, locking a contract and selecting an issue tracker do not authorize deployment, publication or unrelated external writes.
+QA output lives under the product's `.scratch/QA/<project>/` by default, or under another directory given with `--in` (a read-only checkout, a cloud session); the product's path is then recorded in `config.json`. Init also creates `runners/lib/app.cjs`, a starter for the app's own runner helpers, and a `private/` folder for saved sessions and other runner state. Existing workspaces, credentials and run IDs are not overwritten. Local report generation, locking a contract and selecting an issue tracker do not authorize deployment, publication or unrelated external writes.
 
 ### What you are asked, and what you are not
 

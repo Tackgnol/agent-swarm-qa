@@ -65,11 +65,21 @@ Charter kind `inventory`, one route per charter. Work as each available identity
 
 **Sections first.** Split the page into the regions a user would name: header, navigation, a form, a table, a dialog. Each section gets a slug, a title and a locator that scopes its elements. An empty locator means the whole page.
 
+**Sections a rule will compare get a stable handle.** Some rules compare a region before and after an action ("a re-roll changes only its own section"). The harness reads a section's state, its visible text and form values, with `qa.sectionStates()`, and `qa.changedSections()` says which differ. That only works when the section's locator finds exactly that region on every load. Prefer, in order: a test id on the region, a landmark or region with an accessible name, a heading's container. Where a section holds more than what the rule is about (a count badge, a timestamp), add `read`: a locator inside the section naming the part that is its state. When no stable handle exists, say so in the section's title and park a fog line; a scenario that depends on comparing it cannot pass or fail until there is one. When the user owns the app, adding test ids is often the cheapest fix: say which regions need them.
+
 **Shared layout once.** A header, footer or first-visit dialog that appears on every route is inventoried in full on one route, named in the map's notes. Other routes leave it out unless it differs there, and then record only the difference.
 
 **Enumerate from the accessibility tree.** Take Playwright's accessibility snapshot of the route and list every interactive node: buttons, links, text inputs, selects, checkboxes, radios, switches, tabs, menu items, sliders, file inputs, drag handles, sortable headers, and anything with a click, key or pointer handler. A screenshot shows only what is visible; the snapshot is the list. An open modal hides the page behind it from the snapshot, so dismiss it and snapshot again. Then reveal what the first snapshot hides: open each menu and dialog, expand each disclosure, hover what reveals controls, visit the empty and the populated state, scroll lazy regions, check the compact viewport when the layout changes there. Keyboard shortcuts found in source or help text count as interactions.
 
-**Everything inside a dialog is inventoried too.** Opening a dialog is one interaction; each control in it is another, in a section of its own. A dialog recorded only as "opens" leaves its controls out of reach of every scenario.
+**Everything inside a dialog is inventoried too.** Opening a dialog, menu, drawer or panel is one interaction; each control in it is another, in a section of its own. The opening interaction names that section in `opens`:
+
+```json
+{ "section": "header", "element": "share", "action": "click", "role": "button",
+  "locator": "getByRole('button', { name: 'Share' })", "status": "operated", "opens": "share-dialog",
+  "effect": "Opens the 'Share draft' dialog; no request is sent." }
+```
+
+The inventory does not close while an operated interaction whose effect says it opens something has no `opens`, or while a named section has no interactions of its own. A dialog recorded only as "opens" leaves its controls out of reach of every scenario.
 
 **Operate each one once** and record what happened: the navigation, the request (method, path pattern, status), the visible change, the dialog or toast.
 

@@ -135,4 +135,56 @@ function once(laneDir, key) {
   }
 }
 
-module.exports = { apiGet, dialog, fixture, mask, nextAttempt, once, open, record, runnerError, session, shot, spend, track };
+/** The workspace's private folder: saved browser sessions, mailbox logins, anything never shown in a report. */
+function privatePath(qaRoot, name) {
+  const directory = path.join(qaRoot, 'private');
+  fs.mkdirSync(directory, { recursive: true });
+  return path.join(directory, name);
+}
+
+/** Save a session's cookies and storage under private/, so later scripts resume the same identity and fixture. */
+async function saveState(current, qaRoot, name) {
+  const file = privatePath(qaRoot, `${name}.json`);
+  await current.context.storageState({ path: file });
+  return file;
+}
+
+const locatorStart = /^(getBy(Role|Text|Label|Placeholder|AltText|Title|TestId)|locator|frameLocator)\(/;
+const locatorForbidden = /;|`|=>|\b(require|import|process|eval|Function|globalThis|constructor|prototype|window|document)\b/;
+
+/** Turn a locator stored in the inventory into a Playwright locator, relative to a page or another locator. */
+function locate(base, expression) {
+  if (expression === '') { return base.locator(':root'); }
+  if (!locatorStart.test(expression) || locatorForbidden.test(expression)) {
+    throw new Error(`Not a stored Playwright locator: ${expression}`);
+  }
+  return new Function('base', `return base.${expression};`)(base);
+}
+
+/**
+ * Read the state of named sections of a route: visible text plus form values, whitespace-normalized.
+ * entry is the route's interactions file. A section's `read` locator narrows what is read.
+ */
+async function sectionStates(page, entry, ids) {
+  const states = {};
+  for (const id of ids) {
+    const section = entry.sections.find(item => item.id === id);
+    if (!section) { throw new Error(`${entry.route} has no section ${id}.`); }
+    const scope = section.locator ? locate(page, section.locator) : page.locator(':root');
+    const target = section.read ? locate(scope, section.read) : scope;
+    const parts = await target.evaluateAll(elements => elements.map(element => {
+      const values = [...element.querySelectorAll('input, select, textarea')].map(field => (field.type === 'checkbox' || field.type === 'radio') ? String(field.checked) : field.value);
+      if (element.matches('input, select, textarea')) { values.unshift(element.value); }
+      return `${element.innerText}\u0000${values.join('\u0001')}`;
+    }));
+    states[id] = parts.join('\u0002').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
+  }
+  return states;
+}
+
+/** Which sections differ between two sectionStates() readings. */
+function changedSections(before, after) {
+  return Object.keys({ ...before, ...after }).filter(id => before[id] !== after[id]);
+}
+
+module.exports = { changedSections, locate, privatePath, saveState, sectionStates, apiGet, dialog, fixture, mask, nextAttempt, once, open, record, runnerError, session, shot, spend, track };

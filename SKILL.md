@@ -19,7 +19,7 @@ Whatever Playwright cannot do along the way becomes a **barrier** note.
 
 ## The loop
 
-Run this loop from the first message until the destination is reached. `<skill>` is the directory holding this file; `<qa-root>` is the product's `.scratch/QA/<project>/`.
+Run this loop from the first message until the destination is reached. `<skill>` is the directory holding this file; `<qa-root>` is the workspace: `<product>/.scratch/QA/<project>/` by default, or another directory chosen at init.
 
 1. **Orient.** `node <skill>/scripts/qa.ts map <qa-root>`. Run it at the start of a session, after every close, after any context compaction, and whenever you are unsure what you were doing. With no workspace yet, read [init.md](references/init.md) and create one; that charts the map.
 2. **Take one charter.** The one the user named, else the one in hand, else the first on the frontier: `qa.ts claim <qa-root> <charter>`. The claim prints the mission, the reference to read and the completion criterion.

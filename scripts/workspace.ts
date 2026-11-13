@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fingerprint, readJson, safeId, writeJson } from './store.ts';
 import { interactionsHash, loadInteractions, resolveOperation } from './interactions.ts';
 import { seedChart } from './wayfinding.ts';
@@ -10,7 +11,7 @@ export { fingerprint, inside, readJson, safeId, writeJson } from './store.ts';
 
 /** Fingerprint what the user approves. Operating knowledge (operations, route links) is agent-owned and stays outside it. */
 export function approvalHash(value: Config | Scenario | PathMap['paths'][number]): string {
-  const { approval, setupApproval, operations, routes, ...content } = value as unknown as Record<string, unknown>;
+  const { approval, setupApproval, operations, routes, productRoot, ...content } = value as unknown as Record<string, unknown>;
   return fingerprint(content);
 }
 
@@ -39,11 +40,17 @@ export function requiredEnvKeys(config: Config): string[] {
 }
 
 /** Create only empty secret slots; existing workspaces and credentials are never overwritten. */
-export function initialize(projectRoot: string, name: string): string {
+/**
+ * Create a workspace at <product>/.scratch/QA/<name>, or at <directory>/.scratch/QA/<name> when the product's own folder
+ * is the wrong place (a read-only checkout, a repository that should not hold QA files, a cloud session).
+ */
+export function initialize(projectRoot: string, name: string, directory?: string): string {
   assert.ok(existsSync(projectRoot) && statSync(projectRoot).isDirectory(), 'Choose an existing product directory.');
-  const root = join(resolve(projectRoot), '.scratch', 'QA', safeId(name));
+  const parent = directory ?? projectRoot;
+  assert.ok(existsSync(parent) && statSync(parent).isDirectory(), 'Choose an existing directory for the workspace.');
+  const root = join(resolve(parent), '.scratch', 'QA', safeId(name));
   assert.ok(!existsSync(root), 'QA workspace already exists; resume it instead.');
-  for (const path of ['scenarios', 'runners', 'runs', 'issues', 'interview', 'interactions', 'barriers']) {
+  for (const path of ['scenarios', 'runners/lib', 'runs', 'issues', 'interview', 'interactions', 'barriers', 'private']) {
     mkdirSync(join(root, path), { recursive: true });
   }
   writeFileSync(join(root, '.gitignore'), '*\n!.gitignore\n', 'utf8');
@@ -53,14 +60,52 @@ export function initialize(projectRoot: string, name: string): string {
     version: 1, project: name, environments: [], identities: [], privateEnvKeys: [],
     issues: { provider: 'undecided', destination: '', mode: 'undecided' },
     coverage: { browsers: [], locales: [], viewports: [] }, mutationPolicy: 'undecided', setupApproval: null,
+    ...(directory ? { productRoot: resolve(projectRoot) } : {}),
   };
   writeJson(join(root, 'config.json'), config);
   writeJson(join(root, 'map.json'), { version: 1, paths: [] });
   writeJson(join(root, 'routes.json'), { version: 1, routes: [] });
   seedChart(root);
   writeJson(join(root, 'checkpoint.json'), { phase: 'init', pendingQuestions: [], nextAction: 'Run qa.ts map <qa-root> and take the first frontier charter.' });
+  writeFileSync(join(root, 'runners', 'lib', 'app.cjs'), appStarter(), { encoding: 'utf8', flag: 'wx' });
   writeFileSync(join(root, 'interview', 'decisions.md'), '# QA decisions\n\nRecord the actual user answers and decision references here. Never store credentials.\n', 'utf8');
   return root;
+}
+
+/** Starter for the product's own runner helpers, built on the shipped harness. */
+function appStarter(): string {
+  const harness = join(dirname(dirname(fileURLToPath(import.meta.url))), 'scripts', 'harness.cjs');
+  return `// App-specific helpers shared by every runner of this workspace. Fill in what this app needs, once.
+// Session facts (script format, proxy quirks, first-visit dialogs) also belong in the map's notes.
+const path = require('node:path');
+const fs = require('node:fs');
+const qa = require(${JSON.stringify(harness)});
+
+const QA_ROOT = path.resolve(__dirname, '..', '..');
+const config = JSON.parse(fs.readFileSync(path.join(QA_ROOT, 'config.json'), 'utf8'));
+
+/** Open a session on a configured environment, optionally resuming a saved identity from private/. */
+async function start({ environment = config.environments[0]?.name, viewport, state } = {}) {
+  const target = config.environments.find(entry => entry.name === environment);
+  if (!target) { throw new Error(\`Unknown environment \${environment}; see config.json.\`); }
+  const storageState = state ? qa.privatePath(QA_ROOT, \`\${state}.json\`) : undefined;
+  const current = await qa.session({ baseUrl: target.appUrl, viewport, storageState: storageState && fs.existsSync(storageState) ? storageState : undefined });
+  return current;
+}
+
+/** Dismiss whatever the app shows on a first visit (consent notice, tour). Write it once the inventory has seen it. */
+async function firstVisit(page) {
+  void page;
+}
+
+/** Sign in as an identity alias. Credentials come from the trusted env loader; never log them. */
+async function signIn(page, alias) {
+  void page;
+  throw new Error(\`signIn(\${alias}) is not written yet.\`);
+}
+
+module.exports = { QA_ROOT, config, qa, start, firstVisit, signIn };
+`;
 }
 
 export function hasApproval(value: Config | Scenario | PathMap['paths'][number], approval: Approval | null): boolean {

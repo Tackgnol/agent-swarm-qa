@@ -1,8 +1,17 @@
 # Init: destination, decisions, credentials and workspace
 
-Charter kind `setup`. Look for an existing `<product>/.scratch/QA/<project>/` first. One with a map resumes from `qa.ts map`; one without is adopted per [wayfinding.md](wayfinding.md). Read project instructions and current scripts; preserve unrelated product changes. Setup covers facts that affect testing, not an exhaustive product interview.
+Charter kind `setup`. Look for an existing workspace first: `<product>/.scratch/QA/<project>/`, or wherever the user says an earlier one lives. One with a map resumes from `qa.ts map`; one without is adopted per [wayfinding.md](wayfinding.md). Read project instructions and current scripts; preserve unrelated product changes. Setup covers facts that affect testing, not an exhaustive product interview.
 
-Once the product root and slug are known, create the empty workspace **before** asking the remaining Init questions: `node <skill>/scripts/qa.ts init <product-root> <project-slug>`. This charts the opening of the map and enables a planning report while the interview is incomplete. It creates no approvals and leaves issue storage/write mode explicitly undecided. The helper refuses to overwrite existing work. Then claim the setup charter.
+Once the product root and slug are known, create the empty workspace **before** asking the remaining Init questions:
+
+```text
+node <skill>/scripts/qa.ts init <product-root> <project-slug>                    workspace in <product-root>/.scratch/QA/<slug>
+node <skill>/scripts/qa.ts init <product-root> <project-slug> --in <directory>   workspace in <directory>/.scratch/QA/<slug>
+```
+
+Use the product's own folder by default. Choose another directory when that folder is the wrong place: a read-only or throwaway checkout, a repository that should not carry QA files, or a cloud session where the user can only open files under the working directory. With `--in`, the product's path is recorded as `productRoot` in `config.json`; read the source from there. It is a location, not a setup decision, so moving the checkout and updating it needs no new approval.
+
+ This charts the opening of the map and enables a planning report while the interview is incomplete. It creates no approvals and leaves issue storage/write mode explicitly undecided. The helper refuses to overwrite existing work. Then claim the setup charter.
 
 ## Name the destination
 
@@ -52,6 +61,8 @@ Later questions about browsers/locales, fixture permissions or scenario behavior
 
 Highlight the boundary explicitly: **the agent never reads `.env.qa`; a local runner must load the values to use them.** The file is plaintext local secret storage, not encryption or a secret manager. The initializer creates it with restrictive permissions where supported; Windows access still follows local ACLs. Its workspace `.gitignore` excludes everything by default. Do not force-add it or authenticated storage/traces to Git.
 
+**Private runner state.** State a runner needs again but nobody should read lives in the workspace's `private/` folder: saved browser sessions (`qa.saveState()`, resumed with `start({ state })` in `runners/lib/app.cjs`), the login of a mailbox a runner created, tokens a flow issued. Only runners read and write it. Agents refer to its files by name, never open them, and nothing from it enters a report, a screenshot or an issue. The workspace `.gitignore` keeps it out of git with everything else.
+
 **Cloud sessions.** "Fill it locally" assumes the user has an editor on the workspace. In a cloud session they do not, so offer the ways that keep values out of chat: credentials a trusted runner creates and stores itself (a throwaway account it registers), the environment's secret store where the platform has one, or running the lanes that need the values on the user's own machine. A user may still choose to paste a throwaway credential; say that it then sits in the transcript, and never ask for a real one.
 
 After recording identity keys, private URL references and any additional `privateEnvKeys`, run:
@@ -82,7 +93,7 @@ node <skill>/scripts/with-qa-env.ts <qa-root>/.env.qa <qa-root>/runners/<runner.
 
 Runners access env values internally and pass them directly to login/API libraries. Never put values into command arguments, logs, locators written to disk, screenshots, URLs in reports or tool-returned objects. Never run an environment dump, trace a shell sourcing the file, open it through a browser/file tool, or evaluate a REPL expression that returns its contents. Exclude it from explicit searches even if ignored files are normally respected.
 
-The wrapper uses Node's dotenv parser, no shell evaluation, and redacts literal values from child stdout/stderr across chunk boundaries. This is defense in depth: transformed/encoded secrets, screenshots and inherited environment values are not guaranteed redacted. Review runners to avoid logging credentials at all; disable screenshots/traces during secret entry and redact private payloads at collection. Raw authenticated browser state belongs under the run's `private/`, never the gallery or issue attachments.
+The wrapper uses Node's dotenv parser, no shell evaluation, and redacts literal values from child stdout/stderr across chunk boundaries. This is defense in depth: transformed/encoded secrets, screenshots and inherited environment values are not guaranteed redacted. Review runners to avoid logging credentials at all; disable screenshots/traces during secret entry and redact private payloads at collection. Raw authenticated browser state belongs in the workspace's `private/` folder, never the gallery or issue attachments.
 
 If a tool cannot use credentials without exposing them to the agent, ask for a manually authenticated isolated session or another approved credential-capable tool. Keep dependent cases blocked while independent guest/read-only cases proceed. Do not pretend authentication passed.
 
@@ -103,7 +114,8 @@ If a tool cannot use credentials without exposing them to the agent, ask for a m
   interview/decisions.md       user answers, rationale, unresolved branches
   scenarios/QA-001.json        versioned-by-fingerprint scenario contracts, by tier
   runners/*.cjs               replayable scenario runners on <skill>/scripts/harness.cjs
-  runners/lib/                app-specific helpers shared by runners (sign-in, first-visit dialogs)
+  runners/lib/app.cjs         starter for app-specific helpers (session start, first-visit dialog, sign-in)
+  private/                    saved browser sessions, mailbox logins and other runner state; never opened or shown
   checkpoint.json             position inside the charter in hand: jobs, questions, next step
   writes.json                 write budget, writes spent, and test fixtures left on the target
   review.json                 persisted approval order and authorized jumps
@@ -118,7 +130,7 @@ If a tool cannot use credentials without exposing them to the agent, ask for a m
     report.json / .md / .html  same standard report model
     screenshots/              inspected non-sensitive captures
     lanes/<lane>/             each worker's results.json, harness-log.json, logs and outputs
-    private/                  sensitive local state; never shared/rendered
+    private/                  this run's sensitive state; never shared or rendered
 ```
 
 `node <skill>/scripts/qa.ts report <qa-root>` updates the planning report even when the interview is incomplete. Update the checkpoint before waiting for input or ending the session. The setup charter closes when the destination is named and the setup decisions, credential allocations and mutation/issue boundaries are confirmed; credential-dependent work may remain blocked pending local entry.

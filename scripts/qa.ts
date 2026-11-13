@@ -15,7 +15,7 @@ import type { Config, Run } from './models.ts';
 const usage = `Usage: qa.ts <command> <qa-root> ...
   Map:      map <qa-root> [all] | claim <qa-root> <charter> [claimant] | close <qa-root> <charter> <gist> | gist <qa-root> <charter> <gist>
             release <qa-root> <charter> | rule-out <qa-root> <charter> <reason> | chart-add <qa-root> <file.json> | chart <qa-root>
-  Setup:    init <project-root> <slug> | prepare-env | env-template | check-env <qa-root> | budget <qa-root> [<limit> <unit>]
+  Setup:    init <product-root> <slug> [--in <directory>] | prepare-env | env-template | check-env <qa-root> | budget <qa-root> [<limit> <unit>]
   Writes:   spend <qa-root> <who> <what> | fixture <qa-root> <id> <owner> <note> [pending|done|handed-off]
   Learn:    interactions <qa-root> [route] | route-status <qa-root> <route> <pending|inventoried|unreachable|excluded> [reason]
             lint-scenarios <qa-root> [scenario-ID...] | wire-scenarios <qa-root> | next-path | next-path-id | focus-path <qa-root> <path-ID> <decision-ref> <reason>
@@ -31,7 +31,8 @@ export function main(args: string[]): string {
   switch (command) {
     case 'init': {
       if (!first) { throw new Error('A project slug is required.'); }
-      const path = initialize(root, first);
+      if (second !== undefined && (second !== '--in' || !third)) { throw new Error('Usage: init <product-root> <slug> [--in <directory>]'); }
+      const path = initialize(root, first, third);
       writePlanningReport(path);
       return `QA workspace: ${path}\nPrivate .env.qa created with no credentials. Fill it locally, never in chat. The agent must never open/print it; only trusted runner processes load it.\nThe map is charted: run qa.ts map ${path}`;
     }

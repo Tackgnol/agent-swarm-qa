@@ -99,9 +99,9 @@ test('an inventory closes only when every element was operated or classified, an
     writeJson(file, entry);
     assert.throws(() => closeCharter(f.root, 'inventory-draft-editor', 'Done.'), /existing barrier note/);
     writeFileSync(join(f.root, 'barriers', 'export-bot-check.md'), '# Bot check on export\n');
-    assert.match(main(['close', f.root, 'inventory-draft-editor', '5 interactions: 2 operated, 1 deferred, 1 skipped, 1 behind the export bot check.']), /Checked: The route is inventoried[\s\S]*Parent: chart what this made specifiable/);
+    assert.match(main(['close', f.root, 'inventory-draft-editor', '6 interactions: 3 operated, 1 deferred, 1 skipped, 1 behind the export bot check.']), /Checked: The route is inventoried[\s\S]*Parent: chart what this made specifiable/);
     assert.match(renderMap(f.root), /1 noted in barriers\/: export-bot-check/);
-    assert.match(main(['interactions', f.root]), /Interactions: 2 operated, 1 deferred, 1 skipped, 1 behind barriers, 0 pending/);
+    assert.match(main(['interactions', f.root]), /Interactions: 3 operated, 1 deferred, 1 skipped, 1 behind barriers, 0 pending/);
     assert.match(main(['interactions', f.root, 'draft-editor']), /## Editor header \(header\)[\s\S]*- draft-editor\/header\/title\/fill · operated · getByLabel\('Title'\)/);
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });

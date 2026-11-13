@@ -68,3 +68,16 @@ test('the request log separates API calls, writes, trouble and third-party hosts
   assert.deepEqual([...log.hosts], ['www.googletagmanager.com']);
   assert.deepEqual([...log.failedHosts], ['fonts.example.test']);
 });
+
+test('stored locators resolve only as Playwright locator calls, and section readings are compared by section', () => {
+  const calls: string[] = [];
+  const base = new Proxy({}, { get: (_target, name) => (...args: unknown[]) => { calls.push(`${String(name)}(${JSON.stringify(args)})`); return base; } });
+  qa.locate(base, "getByRole('region', { name: 'Gear' })");
+  qa.locate(base, "getByTestId('draft').getByRole('list')");
+  assert.deepEqual(calls, ['getByRole(["region",{"name":"Gear"}])', 'getByTestId(["draft"])', 'getByRole(["list"])']);
+  for (const hostile of ["getByRole('x'); process.exit(1)", "getByText(require('fs'))", "page.goto('x')", "getByRole(() => 1)"]) {
+    assert.throws(() => qa.locate(base, hostile), /Not a stored Playwright locator/);
+  }
+  assert.deepEqual(qa.changedSections({ stats: 'Strength 3', gear: 'Rope' }, { stats: 'Strength 4', gear: 'Rope' }), ['stats']);
+  assert.deepEqual(qa.changedSections({ stats: 'a' }, { stats: 'a', gear: 'Hawk' }), ['gear']);
+});

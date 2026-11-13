@@ -3,6 +3,8 @@ export type Approval = { decisionRef: string; at: string; contentHash: string };
 export type Config = {
   version: 1;
   project: string;
+  /** Where the product's source lives when the workspace is elsewhere. Agent-owned location, outside the setup approval. */
+  productRoot?: string;
   environments: { name: string; appUrl: string; apiUrl?: string; hostUrl?: string; hostUrlEnv?: string }[];
   privateEnvKeys?: string[];
   identities: { alias: string; kind: 'guest' | 'authenticated'; role: string; envKeys: string[] }[];
@@ -78,10 +80,16 @@ export type Interaction = {
   effect: string;
   /** Barrier note ID (barriers/<id>.md) when status is barrier. */
   barrier?: string;
+  /** The section holding what this interaction opens (a dialog, menu or drawer); that section must have interactions of its own. */
+  opens?: string;
 };
 export type RouteInteractions = {
   version: 1; route: string; capturedAt: string;
-  sections: { id: string; title: string; locator: string }[];
+  /**
+   * locator scopes the section's elements. read, when set, is a locator inside the section whose text and form values are its state,
+   * for rules that compare a region before and after an action; without it the whole section is read.
+   */
+  sections: { id: string; title: string; locator: string; read?: string }[];
   interactions: Interaction[];
 };
 export type CharterKind = 'setup' | 'routes' | 'inventory' | 'intent' | 'scenarios' | 'run' | 'lock' | 'task';

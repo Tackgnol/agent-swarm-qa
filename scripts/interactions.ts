@@ -59,6 +59,7 @@ export function loadRouteInteractions(root: string, routeId: string): RouteInter
     sections.add(section.id);
     assert.ok(section.title?.trim(), `${routeId}/${section.id} needs a title.`);
     assert.ok(section.locator === '' || playwrightLocator.test(section.locator), `${routeId}/${section.id}: use a Playwright locator, or an empty string for the whole page.`);
+    assert.ok(section.read === undefined || playwrightLocator.test(section.read), `${routeId}/${section.id}: read is a Playwright locator inside the section.`);
   }
   const barriers = new Set(barrierIds(root));
   const addresses = new Set<string>();
@@ -73,6 +74,7 @@ export function loadRouteInteractions(root: string, routeId: string): RouteInter
     if (item.status !== 'pending') {
       assert.ok(item.effect?.trim(), `${at}: record the observed effect, or the reason it was not operated.`);
     }
+    assert.ok(item.opens === undefined || sections.has(item.opens), `${at}: opens names a section of this route (${item.opens} is not one).`);
     if (item.status === 'barrier') {
       assert.ok(item.barrier && barriers.has(item.barrier), `${at}: name an existing barrier note (barriers/<id>.md).`);
     }
@@ -126,7 +128,14 @@ export function inventoryGaps(root: string, route: Route): string[] {
     return [`interactions/${route.id}.json is missing.`];
   }
   const pending = entry.interactions.filter(item => item.status === 'pending').map(item => address(route.id, item));
-  return pending.length ? [`Not yet operated or classified: ${pending.join(', ')}.`] : [];
+  const opener = /\b(opens?|shows?|reveals?|expands?)\b[^.]*\b(dialog|modal|drawer|menu|popover|panel|sheet|form)\b/i;
+  const unnamed = entry.interactions.filter(item => item.status === 'operated' && !item.opens && opener.test(item.effect)).map(item => address(route.id, item));
+  const empty = [...new Set(entry.interactions.filter(item => item.opens).map(item => item.opens!))].filter(id => !entry.interactions.some(item => item.section === id));
+  return [
+    ...(pending.length ? [`Not yet operated or classified: ${pending.join(', ')}.`] : []),
+    ...(unnamed.length ? [`These open a dialog, menu or panel; name the section holding its contents with "opens": ${unnamed.join(', ')}.`] : []),
+    ...(empty.length ? [`Opened but not inventoried: section ${empty.join(', ')} has no interactions. Inventory what it contains.`] : []),
+  ];
 }
 
 /** Low-resolution coverage of the inventory, for the agent and the review document. */
