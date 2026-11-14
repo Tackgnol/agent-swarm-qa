@@ -48,7 +48,7 @@ test('a send-once step is guarded across replays and evidence carries patterns, 
     assert.equal(qa.once(lane, 'QA-009-send'), true);
     assert.equal(qa.once(lane, 'QA-009-send'), false);
     assert.ok(existsSync(join(lane, 'QA-009-send.done')));
-    assert.equal(qa.mask('/api/characters/4b5cb22d-cb6d-41a8-b6b6-d8e537711b45/items/12345'), '/api/characters/:id/items/:id');
+    assert.equal(qa.mask('/api/drafts/4b5cb22d-cb6d-41a8-b6b6-d8e537711b45/items/12345'), '/api/drafts/:id/items/:id');
   } finally { rmSync(f.project, { recursive: true, force: true }); }
 });
 
@@ -78,6 +78,6 @@ test('stored locators resolve only as Playwright locator calls, and section read
   for (const hostile of ["getByRole('x'); process.exit(1)", "getByText(require('fs'))", "page.goto('x')", "getByRole(() => 1)"]) {
     assert.throws(() => qa.locate(base, hostile), /Not a stored Playwright locator/);
   }
-  assert.deepEqual(qa.changedSections({ stats: 'Strength 3', gear: 'Rope' }, { stats: 'Strength 4', gear: 'Rope' }), ['stats']);
-  assert.deepEqual(qa.changedSections({ stats: 'a' }, { stats: 'a', gear: 'Hawk' }), ['gear']);
+  assert.deepEqual(qa.changedSections({ title: 'Draft 3', tags: 'news' }, { title: 'Draft 4', tags: 'news' }), ['title']);
+  assert.deepEqual(qa.changedSections({ title: 'a' }, { title: 'a', tags: 'sport' }), ['tags']);
 });

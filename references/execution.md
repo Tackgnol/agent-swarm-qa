@@ -26,7 +26,7 @@ A runner is built by trial, and every trial of a writing step leaves data on the
 2. **One fixture for exploration.** When the steps after a write must be explored, create one fixture, record it, and explore on that same fixture across script runs (save the session with `qa.saveState()` into the workspace's `private/` folder and resume it). A fresh fixture per trial is the mistake to avoid.
 3. **Then execute once.** With the runner checked, run the whole scenario from a fresh state. That execution is the attempt.
 
-A scenario whose starting state is random (a generated character, a seeded account) creates the state it needs as its first steps, as the scenario's preconditions say. A runner that only works on a lucky fixture is not replayable.
+A scenario whose starting state is random (a randomly generated record, a seeded account) creates the state it needs as its first steps, as the scenario's preconditions say. A runner that only works on a lucky fixture is not replayable.
 
 Start each runner from `runners/lib/app.cjs`, which init creates for the workspace; fill in the first-visit and sign-in helpers once and every runner reuses them. A rule that compares regions ("only this section changes") is checked with `qa.sectionStates()` before and after the action and `qa.changedSections()`, using the sections the inventory recorded. If a section the rule names has no stable handle, the attempt is `inconclusive` and says so: a guessed region boundary proves nothing either way.
 

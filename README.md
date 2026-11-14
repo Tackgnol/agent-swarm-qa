@@ -189,13 +189,9 @@ Each scenario has a `tier`: `happy`, `error` or `adversarial`; scenarios from ol
 
 Adversarial testing here means abusing the app's own features with legitimate QA accounts inside the agreed effects and request budget. It is not a penetration test, a load test or an attempt to defeat bot checks.
 
-### Trials
-
-[trials/](trials/) records runs of the skill against real apps: what held, what broke, and the status of each gap found. The first is [scvmrack on production](trials/2026-11-scvmrack.md).
-
 ### Writes are budgeted
 
-When the setup allows test-owned writes, the user agrees how many the whole effort may make, inventory and exploration included. Every write is recorded before it is made (`spend`, or `qa.spend()` in a runner), and the helper refuses once the budget is gone, so a lane stops instead of overshooting. Test data left on the target is recorded with `fixture` and shown on the map. This came out of the first live trial, where exploration created more production data than agreed.
+When the setup allows test-owned writes, the user agrees how many the whole effort may make, inventory and exploration included. Every write is recorded before it is made (`spend`, or `qa.spend()` in a runner), and the helper refuses once the budget is gone, so a lane stops instead of overshooting. Test data left on the target is recorded with `fixture` and shown on the map.
 
 ### Existing workspaces
 

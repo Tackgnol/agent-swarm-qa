@@ -23,7 +23,7 @@ A locator names the element by what every user sees. Where an element is identif
 
 Reading is not always read-only. Opening a URL may create a session, a record or a token. In every script, watch the request log for non-GET requests (`log.writes()` in the harness) and treat a write you did not intend as a finding about the route:
 
-- Record it in the route's `reason` ("a first visit creates a guest character: POST /api/characters/new 201") and do not revisit the route casually.
+- Record it in the route's `reason` ("a first visit creates a draft: POST /api/drafts 201") and do not revisit the route casually.
 - Count it against the write budget and record the fixture it left (see [execution.md](execution.md), "Writes are budgeted").
 
 ## Find every route
@@ -48,8 +48,8 @@ Charter kind `routes`. Build `routes.json` from every source and reconcile them:
 
 What counts as one route:
 
-- **Redirects and aliases** that end on another route (`/character` landing on `/character/:id`) are routes of their own: what they do on the way is behavior. Their inventory is usually a single `navigate` interaction.
-- **Query-driven views** that render a different screen (`/panel.html?view=card`) are separate routes. A query that only filters or pre-selects is a state of its route.
+- **Redirects and aliases** that end on another route (`/drafts/new` landing on `/drafts/:id`) are routes of their own: what they do on the way is behavior. Their inventory is usually a single `navigate` interaction.
+- **Query-driven views** that render a different screen (`/embed.html?view=summary`) are separate routes. A query that only filters or pre-selects is a state of its route.
 - **The catch-all** not-found page is one route with pattern `*`.
 - **A second entry point** (an extension panel, an embed) is listed with its own routes.
 
@@ -65,7 +65,7 @@ Charter kind `inventory`, one route per charter. Work as each available identity
 
 **Sections first.** Split the page into the regions a user would name: header, navigation, a form, a table, a dialog. Each section gets a slug, a title and a locator that scopes its elements. An empty locator means the whole page.
 
-**Sections a rule will compare get a stable handle.** Some rules compare a region before and after an action ("a re-roll changes only its own section"). The harness reads a section's state, its visible text and form values, with `qa.sectionStates()`, and `qa.changedSections()` says which differ. That only works when the section's locator finds exactly that region on every load. Prefer, in order: a test id on the region, a landmark or region with an accessible name, a heading's container. Where a section holds more than what the rule is about (a count badge, a timestamp), add `read`: a locator inside the section naming the part that is its state. When no stable handle exists, say so in the section's title and park a fog line; a scenario that depends on comparing it cannot pass or fail until there is one. When the user owns the app, adding test ids is often the cheapest fix: say which regions need them.
+**Sections a rule will compare get a stable handle.** Some rules compare a region before and after an action ("editing one panel leaves the others unchanged"). The harness reads a section's state, its visible text and form values, with `qa.sectionStates()`, and `qa.changedSections()` says which differ. That only works when the section's locator finds exactly that region on every load. Prefer, in order: a test id on the region, a landmark or region with an accessible name, a heading's container. Where a section holds more than what the rule is about (a count badge, a timestamp), add `read`: a locator inside the section naming the part that is its state. When no stable handle exists, say so in the section's title and park a fog line; a scenario that depends on comparing it cannot pass or fail until there is one. When the user owns the app, adding test ids is often the cheapest fix: say which regions need them.
 
 **Shared layout once.** A header, footer or first-visit dialog that appears on every route is inventoried in full on one route, named in the map's notes. Other routes leave it out unless it differs there, and then record only the difference.
 
@@ -92,7 +92,7 @@ The inventory does not close while an operated interaction whose effect says it 
 One record is one action on one element; an element with two actions has two records. The record's **address** is `route/section/element/action`, here `draft-editor/header/title/fill`: the route is the file's `route`, the rest come from the record. Scenarios drive the app by listing addresses, so pick slugs a reader understands.
 
 - **Actions** are Playwright verbs: `click`, `dblclick`, `fill`, `select`, `check`, `uncheck`, `press`, `hover`, `drag`, `upload`, `focus`, `scroll`. Page-level actions with no element of their own are `navigate`, `reload` and `back`; they sit in a whole-page section and may leave `locator` empty.
-- **Repeats.** A list of like items (accordion questions, table rows, class cards) gets one record per item only when the items behave differently; otherwise one record for a representative item, with the count in the effect. One dialog opened from several places gets one record per trigger, and its contents are recorded once.
+- **Repeats.** A list of like items (accordion questions, table rows, product cards) gets one record per item only when the items behave differently; otherwise one record for a representative item, with the count in the effect. One dialog opened from several places gets one record per trigger, and its contents are recorded once.
 
 Every interaction ends in one of four states:
 

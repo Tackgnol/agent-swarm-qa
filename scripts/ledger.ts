@@ -6,7 +6,7 @@ import { withChartLock } from './wayfinding.ts';
 
 export type WriteLedger = {
   version: 1;
-  /** The most test-owned writes the user agreed to for this effort, and what one write is ("guest character"). */
+  /** The most test-owned writes the user agreed to for this effort, and what one write is ("draft"). */
   limit: number | null; unit: string;
   writes: { at: string; who: string; what: string }[];
   /** Test data that exists on the target: who made it and whether it was cleaned up. */
@@ -23,7 +23,7 @@ export function setBudget(root: string, limit: number, unit: string): string {
   return withChartLock(root, () => {
     const ledger = loadLedger(root);
     assert.ok(Number.isInteger(limit) && limit >= 0, 'The budget is a whole number of writes.');
-    assert.ok(unit.trim(), 'Name what one write is, for example "guest character".');
+    assert.ok(unit.trim(), 'Name what one write is, for example "draft".');
     assert.ok(limit >= ledger.writes.length, `${ledger.writes.length} writes are already recorded; the budget cannot be set below that.`);
     ledger.limit = limit;
     ledger.unit = unit.trim();

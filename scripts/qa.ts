@@ -72,11 +72,11 @@ export function main(args: string[]): string {
     }
     case 'budget': {
       if (!first) { return budgetLine(loadLedger(root)); }
-      if (!second) { throw new Error('Give the limit and what one write is: budget <qa-root> 20 "guest character".'); }
+      if (!second) { throw new Error('Give the limit and what one write is: budget <qa-root> 20 "draft".'); }
       return setBudget(root, Number(first), second);
     }
     case 'spend': {
-      if (!first || !second) { throw new Error('Say who is writing and what: spend <qa-root> lane-3 "QA-004 creates a guest character".'); }
+      if (!first || !second) { throw new Error('Say who is writing and what: spend <qa-root> lane-3 "QA-004 creates a draft".'); }
       return spend(root, first, second);
     }
     case 'fixture': {
